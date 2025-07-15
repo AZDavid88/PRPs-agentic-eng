@@ -39,13 +39,33 @@ use context7 for library /pytest-dev/pytest-mock topic "mocking external depende
 
 # Use Context7 for Google Generative AI SDK
 use context7 for library /google/generativeai topic "client setup and model interaction"
+
+# Use Context7 for Pydantic AI integration
+use context7 for library /context7/ai_pydantic_dev topic "LLM integration and structured responses"
+
+# Use Context7 for OpenAI structured outputs
+use context7 for library /openai/openai-python topic "parse chat completions with Pydantic models"
+
+# Use Context7 for advanced Pydantic validation
+use context7 for library /context7/pydantic_dev topic "BaseModel validation and structured outputs"
 ```
 
 **Why Context7 Enhances This PRP:**
 - **Pydantic**: Latest BaseModel patterns, Field specifications, and validation techniques for structured agent outputs
-- **OpenAI SDK**: Current client initialization patterns and structured output handling
+- **OpenAI SDK**: Current client initialization patterns and structured output handling including `client.chat.completions.parse()` method
 - **Pytest Mock**: Modern mocking patterns for LLM clients and external dependencies
 - **Google GenAI**: Up-to-date client setup and model interaction patterns
+- **Pydantic AI**: Advanced LLM integration patterns with structured response validation and streaming support
+- **Structured Outputs**: OpenAI's `parse()` method for automatic Pydantic model validation from LLM responses
+- **Advanced Validation**: Comprehensive validation patterns including partial validation, error handling, and cyclic reference support
+
+**Critical Context7 Patterns for Agent Core:**
+- **Structured LLM Responses**: Use `client.chat.completions.parse(response_format=YourModel)` for automatic validation
+- **Validation Error Handling**: Implement try/catch blocks for `ValidationError` with structured error reporting
+- **Partial Validation**: Support for `allow_partial=True` during streaming or incomplete responses
+- **Custom Validators**: Use `@field_validator` decorators for complex business logic validation
+- **Agent Response Models**: Define clear Pydantic models for each agent type (Director, Tactician, Weaver, Canonist)
+- **Type Safety**: Leverage `typing.Annotated` and `Field()` for enhanced type hints and validation constraints
 
 ## All Needed Context
 
@@ -93,7 +113,7 @@ class ChapterBlueprint(BaseModel):
     -   `__init__(self, persona_name: str)`: Takes the name of the persona (e.g., "DIRECTOR").
     -   `_load_persona(self)`: Private method to load the corresponding `.txt` file.
     -   `_initialize_client(self)`: Private method to set up the `google-generativeai` client.
-    -   `execute(self, context: str) -> BaseModel`: Public method to be overridden by subclasses.
+    -   `execute(self, context: str, feedback_history: list | None = None) -> BaseModel`: Public method to be overridden by subclasses.
 4.  **IMPLEMENT** subclasses `DirectorAgent`, `TacticianAgent`, `WeaverAgent`, `CanonistAgent` in `personas.py`.
     -   Each subclass should inherit from `Agent`.
     -   Each should override the `execute` method to perform its specific role, using its persona and contracts to generate a prompt.

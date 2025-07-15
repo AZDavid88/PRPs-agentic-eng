@@ -10,7 +10,7 @@ To create a clean, self-contained, and standardized Python project structure wit
 ## Why
 
 - **Modularity:** A well-defined structure separates concerns (e.g., `src`, `tests`, `scripts`), making the codebase easier to understand, maintain, and extend.
-- **Deployability:** Proper packaging (`pyproject.toml`) and environment management (`.env`) are critical for creating a portable, deployable application.
+- **Deployability:** Proper packaging (`pyproject.toml`), environment management (`.env`), and a stateful job store (`redis`) are critical for creating a robust, pausable, and deployable application.
 - **Consistency:** Establishes a standard layout that all team members (including AI agents) can rely on, reducing cognitive overhead.
 
 ## What
@@ -42,7 +42,8 @@ The following directory and file structure must be created.
 │       │   └── qdrant.py    # Qdrant client and RAG logic
 │       ├── workflows/
 │       │   ├── __init__.py
-│       │   └── generation.py # The main Prefect flow
+│       │   ├── generation.py # The main Prefect flow
+│       │   └── jobs.py       # NEW: Service for interacting with the Redis job store
 │       └── cli/
 │           ├── __init__.py
 │           └── commands.py  # Logic for the CLI commands
@@ -78,6 +79,28 @@ use context7 for library /tiangolo/typer topic "CLI applications and entry point
 - **Python Packaging**: Current best practices for project structure, entry points, and environment handling
 - **Typer Patterns**: Modern CLI application patterns and command organization
 
+## Core Architecture & Data Contracts
+
+### Job State Contract
+
+A new `JobState` contract is introduced to manage the state of pausable tasks within the workflow. This will be the source of truth for the Human-in-the-Loop (HITL) system, stored in Redis.
+
+```json
+{
+  "JobState": {
+    "description": "The state of a single, pausable task within the narrative factory workflow, stored in Redis.",
+    "job_id": "string (e.g., 'd-a4b8c1f7')",
+    "agent": "string (e.g., 'Director', 'Tactician')",
+    "status": "string (enum: 'processing', 'pending_approval', 'approved', 'rejected', 'complete')",
+    "input_payload": "object",
+    "output_payload": "object",
+    "feedback_history": "array[object]",
+    "created_at": "timestamp",
+    "updated_at": "timestamp"
+  }
+}
+```
+
 ## Implementation Blueprint
 
 ### List of tasks to be completed
@@ -85,10 +108,11 @@ use context7 for library /tiangolo/typer topic "CLI applications and entry point
 1.  **CREATE** the primary directory structure: `src/narrative_factory`, `scripts`, `tests`, `PRPs`.
 2.  **CREATE** sub-packages within `src/narrative_factory`: `agents`, `memory`, `workflows`, `cli`.
 3.  **CREATE** empty `__init__.py` files in all Python packages and sub-packages to make them importable.
-4.  **CREATE** the main project files: `pyproject.toml`, `.gitignore`, `.env.template`, `factory.py`.
-5.  **POPULATE** `.gitignore` with standard Python and environment ignores.
-6.  **POPULATE** `pyproject.toml` with initial dependencies: `prefect`, `qdrant-client`, `pydantic`, `python-dotenv`, `typer`, `google-generativeai`, `openai`.
-7.  **POPULATE** `factory.py` with boilerplate to run the Typer CLI application defined in `src/narrative_factory/cli/commands.py`.
+4.  **CREATE** a new file `src/narrative_factory/workflows/jobs.py` for the `JobStore` service.
+5.  **CREATE** the main project files: `pyproject.toml`, `.gitignore`, `.env.template`, `factory.py`.
+6.  **POPULATE** `.gitignore` with standard Python and environment ignores.
+7.  **POPULATE** `pyproject.toml` with initial dependencies: `prefect`, `qdrant-client`, `pydantic`, `python-dotenv`, `typer`, `google-generativeai`, `openai`, `redis`.
+8.  **POPULATE** `factory.py` with boilerplate to run the Typer CLI application defined in `src/narrative_factory/cli/commands.py`.
 
 ## Validation Loop
 
