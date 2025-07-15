@@ -1,0 +1,31 @@
+{
+  "projectTitle": "PRP Framework - Agentic Engineering",
+  "description": "Product Requirement Prompt framework for AI agents to ship production-ready code on the first pass",
+  "folders": [
+    "PRPs",
+    ".claude/commands",
+    "claude_md_files"
+  ],
+  "excludeFolders": [
+    "node_modules",
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "dist",
+    "build"
+  ],
+  "excludeFiles": [
+    ".gitignore",
+    "LICENSE",
+    "pyproject.toml"
+  ],
+  "rules": [
+    "PRPs must include comprehensive context and validation loops",
+    "Use structured PRP templates with Goal, Why, What, Context, Implementation, and Validation sections",
+    "Always include executable validation commands for syntax, tests, and integration",
+    "Leverage existing Claude commands in .claude/commands/ directory",
+    "Follow the principle: Context is King - include all necessary documentation and examples",
+    "Use TodoWrite tool for task management and progress tracking",
+    "Prefer editing existing files over creating new ones unless absolutely necessary"
+  ]
+}

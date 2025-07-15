@@ -29,6 +29,14 @@ This is a **PRP (Product Requirement Prompt) Framework** repository, not a tradi
 - `PRPs/ai_docs/` contains curated Claude Code documentation for context injection
 - `claude_md_files/` provides framework-specific CLAUDE.md examples
 
+### MCP Server Integration
+
+- **Context7**: Real-time documentation and codebase intelligence via `context7.json`
+- **Upstash**: Database operations and state management for dynamic PRPs (configured with david.tran.int@gmail.com)
+- **Puppeteer**: Web automation for end-to-end testing and validation
+- **Filesystem/Git**: Enhanced file operations and version control
+- All MCP servers configured in `.claude/settings.local.json` for direct tool access
+
 ## Development Commands
 
 ### PRP Execution
@@ -51,6 +59,13 @@ uv run PRPs/scripts/prp_runner.py --prp [prp-name] --output-format stream-json
 - `/prp-planning-create` - Create planning documents with diagrams
 - `/prime-core` - Prime Claude with project context
 - `/review-staged-unstaged` - Review git changes using PRP methodology
+
+### MCP-Enhanced Commands
+
+- `/mcp-context-inject` - Use Context7 to inject real-time documentation context
+- `/mcp-web-validate` - Use Puppeteer for automated validation testing
+- `/mcp-data-persist` - Use Upstash for state management across PRP sessions
+- MCP tools are automatically available and integrated into existing commands
 
 ## Critical Success Patterns
 
