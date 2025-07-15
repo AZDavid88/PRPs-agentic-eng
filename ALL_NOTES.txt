@@ -1,0 +1,174 @@
+# Claude commands to use:
+
+/prp-base-execute <PRP names in /narrative_factory/PRPs>
+
+Task: Execute PRP_MVP_01_SCAFFOLD with full context loading
+
+---
+
+Nova, I have an ambitious project. Its planning all contained within the 2 files, in /workspaces/PRPs-agentic-eng/projects/narrative_factory, NARRATIVE_FACTORY_PRP_v3.md and Narrative factory project.txt. The vision is to build out an agentic workflow, utilizing a cubic core stack of Prefect/controlflow + Qdrant + json + python, "housing" the 4 personas I listed in /workspaces/PRPs-agentic-eng/.personas (director.txt, tactician.txt, weaver.txt, canonist.txt), and using late chunking and other RAG techniques to help maintaining the long continuity of a long serial story (1000+ chapter) from this "genre-agnostic narrative factory". But, this is simply a planning documentation, there lacks a critical amount of implementation process. So, being the all-competent system thinker that you are, help me identify the gaps within this process, what should an MVP look like, what's step-by-step development look like, etc., and make it a self-contained project within /narrative_factory that I can deploy later down the line without having to move all my files in my /workspaces/PRPs-agentic-eng folder. Please look through a critical lens and help me develop this
+
+Here's an analysis as a response to what I have. Digest and give me a plan on how to tackle it.
+
+Your vision is... expansive. The NARRATIVE_FACTORY_PRP_v3.md is a particularly impressive piece of aspirational architecture. It outlines a
+full-stack web application with a sophisticated, multi-stage AI pipeline. The older Narrative factory project.txt provides the philosophical
+underpinnings and a simpler, CLI-based core.
+
+You have a destination, but the map is missing several continents. Let's fix that.
+
+Critical Gap Analysis
+
+Your ambition has outpaced your architecture. Here are the primary gaps between your vision and a functional, deployable system:
+
+1. The "Two Projects" Problem: You have two conflicting blueprints. One (v3.md) describes a complex web application with a frontend, backend,
+    and Celery workers. The other (project.txt) describes a much simpler, single-machine, CLI-driven Python script. You cannot build both at
+    once. The web app is the goal, but the CLI is the foundation.
+2. The "Agent" is an Idea, Not a Class: You've defined the roles of the agents (Director, Weaver, etc.), but not what an agent is in code. There
+    is no Agent class, no defined method for loading a persona, no standard interface for executing a task, and no connection to an LLM client.
+3. The "Cubic Core" is a Slogan, Not a System: You've named your stack, but the connections are missing. How does factory.py talk to Prefect?
+    How does a Prefect task get a Qdrant client? The actual integration code and client initialization logic are undefined.
+4. RAG Is More Than a Search: Your RAG strategy (Two-Tiered Context Retrieval) is well-conceived but lacks implementation details. The Retriever
+    needs code to construct the specific metadata filters for Qdrant. The "spotlight" and "ambient echo" are concepts, not queries.
+5. Missing "Self-Contained" Infrastructure: For this project to be truly self-contained and deployable, it needs more than just Python scripts.
+    It's missing:
+    * A pyproject.toml or requirements.txt to manage dependencies.
+    * A .gitignore file.
+    * A Dockerfile to package it for deployment.
+    * A way to manage environment variables (.env file).
+
+Defining the Minimum Viable Product (MVP)
+
+Forget the React frontend for now. That's Phase 3. The MVP must prove the core thesis: Can a multi-agent pipeline, orchestrated by Prefect, 
+using RAG from Qdrant, generate a single, coherent chapter of a story?
+
+MVP Scope:
+
+* Interface: Command-Line only (factory.py).
+* Agents: All four agents (Director, Tactician, Weaver, Canonist) implemented as Python functions.
+* Orchestration: A single Prefect flow that calls the four agent functions in sequence.
+* Memory: Qdrant for vector storage, populated by a manual ingestion script.
+* Goal: Execute python factory.py generate --seed "A new threat emerges" and get a single, complete chapter written to outputs/chapters/.
+
+Step-by-Step Development Plan: From Vision to MVP
+
+This is the blueprint. We will build the simpler, CLI-based system first, ensuring it's robust and self-contained. This creates the engine
+that the future web UI will sit on top of.
+
+Step 0: Project Scaffolding (The Foundation)
+First, we establish a clean, self-contained structure inside narrative_factory.
+
+1. Create Core Directories: src, scripts, tests, memory, contracts, outputs.
+2. Define Dependencies: Create a pyproject.toml and add prefect, qdrant-client, pydantic, python-dotenv, and an LLM library (e.g.,
+    google-generativeai).
+3. Isolate Code: Move existing logic from scripts/*.py into a proper src/narrative_factory module.
+4. Create `.gitignore`: To keep the project clean.
+
+Step 1: The `Agent` Core
+Define the fundamental building block of your system.
+
+1. Create `src/narrative_factory/agents.py`.
+2. Define a base Agent class that can:
+    * Load a persona file from /workspaces/PRPs-agentic-eng/.personas.
+    * Initialize an LLM client.
+    * Have an execute method that takes a context string and returns a result.
+3. Create subclasses for Director, Tactician, Weaver, and Canonist.
+
+Step 2: The RAG Pipeline
+Implement the memory system.
+
+1. Create `src/narrative_factory/memory.py`.
+2. Write functions to initialize the Qdrant client.
+3. Implement the fetch_context_for_director function, translating the "Two-Tiered" concept into actual Qdrant filter queries.
+4. Create a simple ingest.py script in the scripts directory to read from your memory folder, embed the text, and load it into Qdrant.
+
+Step 3: The Prefect Flow
+Orchestrate the magic.
+
+1. Create `src/narrative_factory/flow.py`.
+2. Define each agent's main function as a Prefect @task.
+3. Create the main @flow that calls the tasks in order: Director -> Tactician -> Weaver -> Canonist.
+4. Ensure data is passed correctly between tasks (e.g., the Director's output is the Tactician's input).
+
+Step 4: The CLI Interface
+The user's entry point.
+
+1. Create `src/narrative_factory/cli.py` (this will become factory.py).
+2. Use a library like typer or argparse.
+3. Implement the generate command, which takes a --seed and triggers the Prefect flow.
+4. Implement the ingest command, which runs the ingestion script.
+
+Proposed Self-Contained Project Structure
+
+This is what the narrative_factory directory should look like to be a proper, deployable Python project.
+
+1 /workspaces/PRPs-agentic-eng/projects/narrative_factory/
+2 ├── .gitignore
+3 ├── Dockerfile
+4 ├── pyproject.toml
+5 ├── README.md
+6 ├── .env
+7 ├── .env.template
+8 ├── scripts/
+9 │   ├── ingest.py
+10 │   └── bootstrap_qdrant.py
+11 ├── src/
+12 │   └── narrative_factory/
+13 │       ├── __init__.py
+14 │       ├── agents.py         # Core Agent class and subclasses
+15 │       ├── cli.py            # The CLI logic for factory.py
+16 │       ├── flow.py           # The main Prefect flow
+17 │       └── memory.py         # Qdrant client and RAG logic
+18 ├── tests/
+19 │   ├── test_agents.py
+20 │   └── test_memory.py
+21 ├── memory/
+22 │   └── ... (your world bible and story so far)
+23 ├── contracts/
+24 │   └── ... (your agent contracts)
+25 └── outputs/
+26     └── ... (generated chapters and logs)
+
+This plan creates a robust, testable, and deployable CLI application that fully realizes the core of your vision. Once this engine is built
+and proven, building the React UI on top of it becomes a far more manageable task.
+
+I have provided the optimal blueprint. The path is clear.
+
+**Not to mention you now have access to MCP servers like Upstash and context7. That should make things easier for you, right?
+
+---
+
+● MVP Goals:
+- Proof of Concept: Single chapter generation via CLI
+- Timeline: 2-3 weeks vs 3-6 months for web app
+- Foundation: Perfect base for future web UI (Phase 2)
+
+Step-by-Step Plan:
+
+1. Foundation (Week 1): Self-contained structure, Agent classes, basic Qdrant setup
+2. Core Pipeline (Week 1-2): Four-agent Prefect workflow, RAG retrieval
+3. CLI Interface (Week 2): factory.py ingest and factory.py generate commands
+4. Validation (Week 3): Error handling, testing, documentation
+
+Self-Contained Structure:
+/workspaces/PRPs-agentic-eng/projects/narrative_factory/
+├── pyproject.toml           # Dependencies (prefect, 
+qdrant-client, etc.)
+├── .env.template           # API keys template
+├── factory.py              # Main CLI interface
+├── src/narrative_factory/
+│   ├── __init__.py
+│   ├── agents/             # Director, Tactician, Weaver,
+Canonist
+│   ├── memory/             # Qdrant integration, RAG pipeline
+│   ├── workflows/          # Prefect flows
+│   └── cli/                # CLI commands
+├── memory/                 # Input: world bible, story so far
+├── contracts/              # MCP contracts from your personas
+├── outputs/                # Generated chapters
+└── tests/                  # Unit tests
+
+This approach gives you a working narrative factory in 2-3 weeks that you can later enhance with the web UI from v3.md.
+
+Would you like me to start implementing this self-contained CLI-based MVP? The foundation I build will be perfectly positioned for your future web app expansion
+
+

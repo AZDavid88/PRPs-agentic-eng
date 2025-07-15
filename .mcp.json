@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "transport": "stdio"
+    },
+    "upstash": {
+      "command": "npx",
+      "args": ["-y", "@upstash/cli"],
+      "transport": "stdio",
+      "env": {
+        "UPSTASH_EMAIL": "david.tran.int@gmail.com",
+        "UPSTASH_API_KEY": "34a3f14d-67f7-4962-bcea-2c2dacadfdf4"
+      }
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@puppeteer/mcp-server"],
+      "transport": "stdio"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "transport": "stdio"
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"],
+      "transport": "stdio"
+    }
+  }
+}
