@@ -1,0 +1,507 @@
+
+# **Blueprint: The Nova-Forged Narrative Factory v1.6**
+
+**Document Status:** **CANONICAL // DEFINITIVE**
+**Purpose:** To serve as the complete, actionable, and singular specification for the architecture, implementation, operation, deployment, and long-term curation of the Narrative Factory, built upon the **Prefect-based Cubic Core Stack**.
+
+---
+
+### **1.0 Project Vision & Core Philosophy**
+
+#### **1.1. Vision:**
+To construct a semi-autonomous, genre-agnostic narrative generation engine capable of producing high-quality, long-form serial fiction while maintaining absolute continuity and maximizing narrative propulsion.
+
+#### **1.2. Core Philosophy: The Fractal Tension Loop**
+The engine is governed by a self-sustaining narrative propulsion model. Each chapter generates unresolved tensions that recursively evolve into more complex consequences. The system’s core intelligence identifies, escalates, and resolves these tensions with deliberate, machine-like pacing, ensuring relentless forward momentum.
+
+---
+
+### **2.0 System Architecture: The Cubic Core Stack**
+
+The entire factory is built on a minimalist, robust, and modular stack designed for local development and production deployment.
+
+| Layer | Component | Function & Rationale |
+| :--- | :--- | :--- |
+| **Logic & Orchestration** | **Prefect** | A code-native workflow orchestrator for building, observing, and reacting to the agent pipeline. Chosen for its simple Pythonic interface, production-grade reliability (retries, logging), and low learning curve. |
+| **Semantic Memory** | **Qdrant** | High-speed vector database for storing and retrieving tagged, typed memory chunks. Chosen for fast, local performance and powerful metadata filtering. |
+| **Operational & Data** | **Python & JSON** | **Python** for all backend logic: embedding, retrieval, data validation, and the master control CLI. **JSON** for the human-readable ground truth: memory source files, MCP contracts, and schemas. |
+
+---
+
+### **3.0 Data Infrastructure & Governance**
+
+#### **3.1. Project File Structure (Mandatory)**
+This structure is non-negotiable to ensure modularity and operational consistency.
+
+```
+/narrative-factory/
+├── 📄 factory.py             # The Master Control CLI (sole user interface)
+├── 📄 schemas.json           # The Schema Registry (enforces data integrity)
+├── 📁 contracts/             # MCP Contracts defining agent memory needs
+│   ├── director.json
+│   ├── tactician.json
+│   ├── weaver.json
+│   └── canonist.json
+├── 📁 memory/                # The human-readable ground truth for the story
+│   ├── world_bible/
+│   │   ├── character_sheets/
+│   │   ├── style_profiles/
+│   │   └── lore/
+│   └── story_so_far/
+│       ├── chapter_summaries/
+│       └── tension_reports/
+├── 📁 scripts/               # Reusable Python modules
+│   ├── embedder.py
+│   ├── retriever.py
+│   └── validators.py
+└── 📁 outputs/               # All generated artifacts
+    ├── chapters/
+    └── logs/                 # Error logs and system status reports
+```
+
+#### **3.2. Schema Registry (`schemas.json`)**
+The gatekeeper of data quality. No data is ingested by `embedder.py` without passing validation against this file. This prevents runtime errors due to missing or malformed data.
+
+**Example Schema:**
+```json
+{
+  "character_sheet": {
+    "required_fields": ["id", "name", "arc", "goals", "flaws", "voice_tone"],
+    "optional_fields": ["faction_id", "secret_knowledge"]
+  },
+  "tension_report": {
+    "required_fields": ["id", "chapter_index", "thread_id", "description", "status"],
+    "valid_values": { "status": ["unresolved", "escalated", "resolved"] }
+  }
+}
+```
+
+#### **3.3. Qdrant Dual-Core Memory System**
+A single Qdrant instance hosts two logical collections, separating static and dynamic memory for query efficiency and clarity.
+
+| Collection Name | Purpose & Content | Ingestion Method |
+| :--- | :--- | :--- |
+| **`world_bible`** | Stores the immutable, foundational canon: `style_profile`, `character_sheet`, `magic_system`, `faction_profile`, `lexicon_term`. | Via `factory.py ingest` command, using Late Chunking for context preservation. |
+| **`story_so_far`** | Stores the evolving plot history: `chapter_summary`, `tension_report`, `char_arc_delta`. | Via the Canonist agent's automated writeback at the end of each generation cycle. |
+
+### **3.4 The Multi-Threaded Context Weaving Protocol (Mandatory Implementation)**
+This protocol is the technical implementation of the 'Fractal Tension Loop' philosophy outlined in Section 1.2. It ensures the factory can track, develop, and converge multiple narrative threads—including those occurring "off-screen" from the protagonist's perspective—by enforcing disciplined data enrichment and a multi-stage retrieval architecture.
+
+#### **3.4.1. Data Enrichment: The Memory Passport**
+All `story_so_far` memory chunks written to Qdrant by the Canonist agent MUST be enriched with a complete set of metadata. This is non-negotiable for maintaining world-state awareness.
+
+**Mandatory Metadata Fields:**
+*   `doc_id`: A unique identifier for the memory chunk.
+*   `doc_type`: The type of memory (e.g., `chapter_summary`, `tension_report`, `char_arc_delta`).
+*   `chapter_index`: The chapter number in which the event occurred.
+*   `present_characters`: A list of character IDs (`char_selene`, `char_kain`) directly involved in this event.
+*   `thread_id`: **The lynchpin of this protocol.** A persistent identifier for the specific subplot this memory belongs to (e.g., `thread_plague_cure_research`, `thread_palace_intrigue`, `thread_sunstone_heist`). A single event can have multiple `thread_id`s.
+*   `tension_status`: For `tension_report` documents, the state must be one of: `unresolved`, `escalating`, or `resolved`.
+
+#### **3.4.2. Retrieval Architecture: Two-Tiered Context Retrieval**
+To provide the agents with a complete picture, the `Retriever` module MUST perform a two-tiered query against Qdrant for every chapter generation cycle. This prevents the system from developing "protagonist-only" tunnel vision.
+
+*   **Tier 1: The Spotlight Query**
+    *   **Purpose:** To retrieve context directly relevant to the current point-of-view characters and the immediate chapter seed. This represents what the active characters *know* and are *experiencing*.
+    *   **Mechanism:** A high-relevance vector search filtered by the `present_characters` for the current scene and other direct keywords from the seed.
+
+*   **Tier 2: The Ambient Echo Query**
+    *   **Purpose:** To retrieve critical information about significant, unresolved events happening elsewhere in the world. This represents the "background radiation" of the story's overall state.
+    *   **Mechanism:** A second, broader vector search specifically querying for `tension_report` documents where `tension_status` is `unresolved` OR `escalating`. This query may explicitly exclude the protagonist to find purely "off-screen" events.
+
+The outputs of both tiers are then clearly demarcated and fed into the Director agent's context window.
+
+#### **3.4.3. The Canonist's Role: State Management**
+The Canonist agent is the ultimate enforcer of this protocol. Its writeback function at the end of each cycle is not just summarization; it is **world state management**. It MUST:
+*   Identify new narrative threads and assign new, persistent `thread_id`s.
+*   Update the `tension_status` of existing `thread_id`s based on the events of the newly generated chapter.
+*   Accurately tag all new memories with the correct `present_characters` and `thread_id`s.
+
+This closed loop of **Enrich -> Retrieve -> Update** ensures that the narrative factory maintains a persistent, multi-threaded awareness of its own fictional world.
+
+---
+
+### **4.0 Narrative Pipeline: The Four-Agent Assembly Line**
+
+This is the primary workflow, defined as a code-native pipeline in Prefect.
+
+| Agent | Role | Input | Output |
+| :--- | :--- | :--- | :--- |
+| **Director** | Strategic Planner | Chapter Seed | `[STRATEGIC_BRIEF]` |
+| **Tactician** | Scene Choreographer | Strategic Brief | `[CHAPTER_BLUEPRINT]` |
+| **Weaver** | Prose Generator | Single Chapter Beat | `[PROSE_FRAGMENT]` |
+| **Canonist** | Memory Guardian | Assembled Chapter Prose | `[MEMORY_DELTA]` |
+
+---
+
+### **5.0 Operational Controls & Guardrails**
+
+#### **5.1. Master Control Interface (`factory.py` CLI)**
+The sole, standardized interface for interacting with the factory. This enforces correct operational sequencing and abstracts away underlying complexity.
+
+| Command | Function |
+| :--- | :--- |
+| `python factory.py ingest --path <dir>` | Validates all files in `<dir>` against `schemas.json` and embeds them into Qdrant. |
+| `python factory.py generate --seed "<prompt>"` | Executes the full Four-Agent pipeline to generate a new chapter. |
+| `python factory.py inspect --type <mem_type>` | Queries and displays the current state of a specified memory type (e.g., all `tension_report`s). |
+
+#### **5.2. Error Tolerance & Fallbacks (Anti-Fragility)**
+The system is designed to fail gracefully, not catastrophically.
+
+| Failure Point | Guardrail Protocol |
+| :--- | :--- |
+| **Schema Invalidation** | Ingestion is **rejected**. A detailed error is written to `/logs/ingestion_errors.log`. The database remains clean. |
+| **Memory Retrieval Fails** | The retriever will log a warning and inject a predefined `default.json` for the missing memory type to allow the pipeline to continue with baseline context. |
+| **LLM API Timeout/Failure** | The agent will retry the call up to 3 times with exponential backoff. If still failing, it will halt the process, save the state of the previous stage to `/outputs/failed_runs/`, and log a critical error. |
+
+---
+
+### **6.0 Phased Implementation Plan (Production Edition)**
+
+This sequence is mandatory and includes all necessary production setup steps.
+
+#### **Phase 0: Foundation & Environment Setup**
+*   [ ] **Setup Version Control:** Initialize a `Git` repository.
+*   [ ] **Create Project Structure:** Create the full directory tree, including a new `/tests` directory.
+*   [ ] **Manage Secrets:** Create a `.env.template` file for API keys. Use a `.env` file locally (added to `.gitignore`).
+*   [ ] **Bootstrap Database:** Write and run `scripts/bootstrap_qdrant.py` to create the necessary collections.
+*   [ ] **Setup Orchestrator:** Create a free Prefect Cloud account. Log in via the CLI and start a local Prefect agent pointed at your work queue.
+
+#### **Phase 1: Build Core Modules & Test Suite**
+*   [ ] **Implement Core Logic:** Write the Python modules in `/scripts` (`validator.py`, `embedder.py`, `retriever.py`, and a new `model_client.py` to abstract all LLM calls).
+*   [ ] **Write Unit Tests:** Create corresponding test files in `/tests` for each module and run `pytest`.
+*   [ ] **Test Ingestion:** Use the `factory.py ingest` command to run your full ingestion pipeline.
+
+#### **Phase 2: Assemble & Test the Prefect Flow**
+*   [ ] **Define Prefect Tasks:** In `flow.py`, define each of the four agents as a Prefect `@task`. These tasks MUST use `model_client.py` for all LLM calls.
+*   [ ] **Implement Task Serialization:** Each task producing a critical artifact (`strategic_brief`, etc.) MUST save its output to a versioned JSON file in `/outputs/staged/` to enable recovery.
+*   [ ] **Assemble Full Flow:** Structure the full, four-agent sequence inside your main `@flow`.
+*   [ ] **Test with Debug Harness:** Use `scripts/harness.py` to test the full flow with mocked LLM responses.
+
+#### **Phase 3: Deploy & Finalize**
+*   [ ] **Implement Conductor's Toolkit:** Build the CLI commands for the Sustenance Protocols (Section 7.0).
+*   [ ] **Implement Fail Recovery:** Build the `factory.py resume` command that reads from `/outputs/staged/` to recover a failed run.
+*   [ ] **Deploy to Cloud:** Create the deployment configuration (e.g., `Dockerfile`) for your cloud host (e.g., Railway) to run the Prefect agent.
+
+---
+
+### **7.0 The Conductor's Toolkit: Strategic Curation & Sustenance**
+
+The factory's initial build addresses immediate generation. This section addresses long-term **narrative health**. The role of the human operator evolves from Factory Foreman to **The Conductor**, who uses these tools to guide the story's rhythm and prevent long-term decay.
+
+#### **7.1. The Arc Structure Governor (Combats Pacing Blindness)**
+This is the Conductor's baton. It provides high-level structural and pacing direction to the otherwise tactical AI agents.
+
+*   **Mechanism:** A human-edited file, `arc_governor.json`, which is a **mandatory input for the Director agent.**
+*   **Implementation:**
+    1.  Create `arc_governor.json` at the project root.
+    2.  The Director's MCP contract and retrieval logic must be updated to load and prioritize this file's directives.
+*   **Example `arc_governor.json`:**
+    ```json
+    {
+      "current_arc": "The Whispering Plague",
+      "arc_phase": "Rising Action",
+      "target_pacing": "high-tension, mystery-focused",
+      "chapter_focus_override": "investigation_and_paranoia",
+      "next_phase_trigger": "identity_of_patient_zero_is_revealed"
+    }
+    ```
+*   **Conductor's Role:** Manually update this file every 5-10 chapters to guide the narrative's tempo, ensuring a balance of action, introspection, and revelation.
+
+**7.2. Sustenance Protocols (Combats Narrative Debt):**
+
+| Protocol | Problem It Solves | Implementation | Conductor's Role (To Prevent Second-Order Failure) |
+| :--- | :--- | :--- | :--- |
+| **Memory Consolidator** | **The Quagmire of Canon:** A noisy, bloated memory store. | `factory.py consolidate --arc <name>`: Summarizes and archives old memory. | **Manually review and approve** the summary before committing. |
+| **Character Drift Detector**| **Character Flanderization:** Characters becoming caricatures. | `factory.py audit --character <name>`: Flags stylistic drift against a golden master. | **Use judgment** to distinguish between natural growth and Flanderization. |
+| **Catalyst Injector** | **Narrative Stagnation:** The story becomes a closed, predictable loop. | `factory.py generate --inject-catalyst`: Forces the Director to incorporate a random event. | **Choose the timing artfully.** A poorly timed catalyst can feel like a Deus Ex Machina. |
+| **Model Version Pinning**| **The Model Drift Ghost:** The LLM's voice silently changing. | **A strict project rule:** All LLM API calls must use a specific, versioned model ID. | **Periodically review and test** new models for a potential, carefully planned future upgrade. |
+
+---
+
+
+### **8.0 Resilience & Maintainability Protocols**
+
+This section defines the mandatory infrastructure for testing, debugging, and recovering the system. These are not optional enhancements; they are fundamental to the factory's long-term viability.
+
+#### **8.1. The Debug Harness (`scripts/harness.py`)**
+*   **Problem:** Testing the full pipeline is slow and expensive due to LLM calls.
+*   **Solution:** A dedicated Python script that simulates the full `generate` pipeline by:
+    1.  Ingesting a chapter seed.
+    2.  Calling each agent's core logic (`retriever.py`, etc.) in sequence.
+    3.  **Using mocked (dummy) LLM responses** instead of making real API calls.
+*   **Purpose:** Allows for rapid, free testing of the entire data flow, memory retrieval, and agent sequencing logic.
+
+#### **8.2. The Test Suite (`/tests/`)**
+*   **Problem:** Manual testing is unreliable. Code changes can introduce regressions that break core functionality.
+*   **Solution:** A dedicated `/tests` directory using a framework like `pytest`. This suite **must** be run after any significant code change.
+*   **Mandatory Initial Tests:**
+    *   `test_schema_validation.py`: Tests that the validator correctly accepts valid data and rejects invalid data.
+    *   `test_retriever_logic.py`: Tests that the retriever correctly parses an MCP and builds the right Qdrant filter.
+    *   `test_cli_commands.py`: Tests that the `factory.py` CLI commands parse arguments correctly.
+    *   `test_model_versioning.py`: Tests that LLM calls are correctly formatted with the pinned model version.
+
+#### **8.3. The Operational Journal (`/outputs/ops_log.md`)**
+*   **Problem:** The Conductor is human and cannot remember every action taken over months.
+*   **Solution:** A simple Markdown file that serves as the official changelog for the narrative.
+*   **Process:** The Conductor **must manually append a one-line entry** after every significant action:
+    ```markdown
+    - **2024-10-26:** Ran `generate` for Ch. 215. Seed: "Ren discovers the archives."
+    - **2024-10-27:** Ran `consolidate` for "The Whispering Plague" arc.
+    - **2024-10-28:** Ran `audit` for character "Selene". Drift detected; MCP updated.
+    ```
+
+#### **8.4. The Fail Recovery Protocol (The "Resume" Function)**
+*   **Problem:** A long `generate` run fails midway due to a network error, wasting time and money.
+*   **Solution:** A `resume` capability built into the `factory.py` CLI.
+*   **Implementation:**
+    1.  When `factory.py generate` runs, it creates a temporary directory (e.g., `/tmp/run_XYZ/`).
+    2.  After each agent (Director, Tactician, etc.) completes its task, its output is saved as a JSON file in that directory (e.g., `1_director_output.json`).
+    3.  If the run fails, the temporary directory remains.
+    4.  A new command, `python factory.py resume --run-id XYZ`, is used. It scans the directory, finds the last successfully saved step, and resumes the pipeline from that point, reloading the necessary data instead of regenerating it.
+
+### **9.0 Deployment & Operations**
+
+This section provides the operational doctrine for the deployed factory.
+
+**9.1. Environment & Secrets Management:** The project MUST use a `.env` file for local development and environment variables for cloud deployment. The `.env` file must never be committed to Git.
+
+**9.2. Deployment to a Cloud Host (e.g., Railway):** The deployment artifact (e.g., a Docker container) is responsible for running the **Prefect Agent**. The agent listens for flow runs scheduled via the Prefect Cloud UI or triggered via API/CLI.
+
+**9.3. Continuous Integration (CI) - Optional Future Step:** For maximum resilience, a CI pipeline (e.g., GitHub Actions) can be implemented to automatically run the test suite on every code push.
+
+---
+
+#### **Protocol 1: The Automated Conscience (Countermeasure to "The Perfect Conductor Myth")**
+
+*   **The Flaw It Addresses:** Your inevitable human tendency toward laziness, haste, and forgetfulness.
+*   **The Principle:** If the human partner is fallible, the machine partner must become the enforcer of discipline. We will make diligence the path of least resistance.
+*   **Implementation:**
+    1.  **Modify the `factory.py` CLI:** The `generate` and `consolidate` commands are now "guarded."
+    2.  **Create a System State Log:** A new file, `system_state.json`, will track the timestamps of critical curation actions.
+    3.  **The Guard Logic:**
+        *   Before executing `generate`, the CLI will check `system_state.json`. If `character_audit` hasn't been run in the last 50 chapters, or `tension_report_review` in the last 25, the command will halt and issue a **"Discipline Warning."** It will require a `--force-irresponsible` flag to proceed. This transforms laziness from a passive oversight into an active, logged choice.
+        *   Before executing `consolidate`, the CLI will prompt the Conductor with a checklist: `[ ] Have you read the full summary? [ ] Do you attest this summary captures all critical nuances? (y/n)`. Answering "y" appends a signed attestation to the `ops_log.md`.
+*   **The New Reality:** The system now nags you to do your job. It creates a low-level, persistent friction against your worst impulses. You are still the Conductor, but you now have an indefatigable, pedantic first mate.
+
+#### **1. The Cadence for "The Automated Conscience": The Ritual of Intent**
+
+*   **The Curse It Manages:** Warning Fatigue & The Abdication of Thought.
+*   **The Flawed Approach:** Mindlessly running `audit` just to clear a warning.
+*   **The v1.8 Cadence:**
+    1.  When the `generate` command is halted by a **Discipline Warning**, you do not simply run the required task.
+    2.  You first open `ops_log.md`.
+    3.  You run the required command (e.g., `python factory.py audit --character Selene`).
+    4.  You **read the output**.
+    5.  You then write a **one-sentence summary of your findings** in the `ops_log.md`. For example:
+        *   `2025-07-10: Ran audit for Selene per system warning. No significant drift detected. Proceeding.`
+        *   `2025-07-10: Ran audit for Kain. System flagged drift towards excessive pessimism. Reviewed and updated his MCP contract to re-emphasize his core hope. Proceeding.`
+*   **Why It Works:** This transforms a nuisance into a ritual. It forces a moment of conscious engagement. The act of writing the log entry ensures you are not just clearing a flag; you are performing your duty as Conductor and creating a record of your decision.
+
+---
+
+#### **Protocol 2: The Semantic Forge (Countermeasure to "The Embedding Model Mismatch")**
+
+*   **The Flaw It Addresses:** The generic nature of pre-trained embedding models failing to grasp your story's unique semantic nuances.
+*   **The Principle:** If the semantic map is flawed, we will not wander aimlessly looking for a better one. We will build our own landmarks.
+*   **Implementation:**
+    1.  **Create a Semantic Anchor File:** A new file, `memory/world_bible/semantic_anchors.jsonl`, is created.
+    2.  **New CLI Command: `factory.py forge`:** This tool is your semantic chisel.
+        *   **Usage:** `python factory.py forge --concept "The unique nature of 'Soul-Fire' magic in our world"`
+        *   **Action:** The command uses the LLM itself to generate 5-10 short, dense, and specific sentences that define the *essence* of the concept. Example output: `"Soul-Fire consumes the user's memories as fuel."` `"Unlike elemental fire, Soul-Fire cannot be extinguished by water, only by an act of selfless will."`
+    3.  **Ingestion:** These "semantic anchors" are ingested into the `world_bible` collection in Qdrant.
+*   **The New Reality:** When the Retriever searches for "Soul-Fire," it's now guaranteed to find these hyper-specific, purpose-built definitions. You are no longer relying on the model's generic understanding; you are creating dense, powerful "islands of meaning" in the vector space, forcing the model to navigate your world on your terms.
+
+#### **2. The Cadence for "The Semantic Forge": The Arc-End Review**
+
+*   **The Curse It Manages:** Semantic Ossification.
+*   **The Flawed Approach:** Believing `story_so_far` will automatically update the AI's core understanding.
+*   **The v1.8 Cadence:**
+    1.  The `consolidate` command is now part of a larger, two-step process.
+    2.  **Step 1:** Run `python factory.py consolidate --arc "The Whispering Plague"`.
+    3.  **Step 2 (Mandatory):** Immediately after, you perform a **Semantic Review**. You ask yourself: "What core concepts were central to that arc? Did our understanding of them *evolve*?"
+    4.  You then use `python factory.py forge --concept "Soul-Fire"` to update the Semantic Anchors, adding new nuances or even overwriting old definitions based on the events of the completed arc.
+*   **Why It Works:** This ties the evolution of your story's meaning directly to the rhythm of the plot itself. An arc's conclusion is the natural moment to reflect on change. This cadence ensures your foundational canon doesn't become a fossil; it evolves with the narrative.
+
+---
+
+#### **Protocol 3: The Parallel Futures Engine (Countermeasure to "The Latency Chasm")**
+
+*   **The Flaw It Addresses:** The slow, frustrating, one-chapter-at-a-time generation loop that discourages experimentation.
+*   **The Principle:** Do not fight latency. Exploit it. If each decision takes time to simulate, then simulate multiple decisions at once.
+*   **Implementation:**
+    1.  **Modify `factory.py generate`:** The command now accepts a `--branch <branch_name>` argument.
+    2.  **Branched Outputs:** When run with a branch name, all outputs (staged files, final chapter, logs) are saved to a dedicated subdirectory, e.g., `outputs/branches/chapter_216_alt_betrayal/`.
+    3.  **Asynchronous Operation:** The Prefect agent, running locally or in the cloud, can execute multiple flow runs in parallel. The Conductor can fire off three different `generate` commands with three different seeds and branch names.
+*   **The New Reality:** The workflow is transformed. Instead of "Generate... wait... evaluate... repeat," it becomes "On Monday, launch three potential futures for this week's chapter. On Tuesday, review the results and select the canonical branch." The latency is no longer a bug; it's a feature that enables strategic, parallel experimentation.
+
+#### **3. The Cadence for "Parallel Futures": The Fork-in-the-Road Protocol**
+
+*   **The Curse It Manages:** The Multiverse of Indecision.
+*   **The Flawed Approach:** Either avoiding the tool entirely or using it for every minor decision.
+*   **The v1.8 Cadence:**
+    1.  The `generate --branch` command is now reserved for **Tier 1 Narrative Forks** only.
+    2.  A Tier 1 fork is defined as a decision so pivotal it will fundamentally alter the direction of the entire current arc (e.g., "Does the hero accept the dark power?" "Does the capital city fall?").
+    3.  For all other chapters, you are **forbidden** from using branches. You must trust your primary seed and the core `generate` command. This forces you to make confident authorial choices for 95% of the story.
+*   **Why It Works:** It turns a dangerous temptation into a strategic weapon. By strictly defining when it can be used, you prevent analysis paralysis while retaining the power to explore true, story-altering crossroads when they matter most.
+
+---
+
+#### **Protocol 4: The Narrative Spotlight (Countermeasure to "The Complexity Ratchet")**
+
+*   **The Flaw It Addresses:** The combinatorial explosion of characters, plots, and lore overwhelming the AI agents.
+*   **The Principle:** The story may be vast, but any given chapter is not about everything. We must give the AI blinders, allowing it to focus its cognitive resources on what matters *right now*.
+*   **Implementation:**
+    1.  **Upgrade `arc_governor.json`:** Add a new key, `"narrative_spotlight"`.
+    2.  **Spotlight Contents:** This key will hold a list of entity IDs (`character_id`, `thread_id`, `lore_id`) that are the absolute focus for the current block of chapters.
+        ```json
+        "narrative_spotlight": {
+          "active_characters": ["char_selene", "char_kain"],
+          "active_threads": ["thread_whispering_plague_cure"],
+          "active_lore": ["lore_ancient_treaty_of_suns"]
+        }
+        ```
+    3.  **Modify the `Retriever`:** The retriever logic is updated. When fetching context for the Director, it will perform a two-stage search:
+        *   **Stage 1 (Spotlight Search):** A highly-weighted search filtered *only* for memories matching the IDs in the `narrative_spotlight`.
+        *   **Stage 2 (Ambient Search):** A broader, lower-weighted search across the entire memory corpus to pull in relevant but non-primary context.
+*   **The New Reality:** You have given the Director agent a powerful focusing mechanism. It can now allocate the majority of its context window and "attention" to the most critical elements, preventing it from getting lost in the weeds of a 600-chapter history. The Conductor's role becomes even more strategic: you are now the lighting designer, deciding which parts of the stage to illuminate.
+
+#### **4. The Cadence for "The Narrative Spotlight": The B-Plot Rotation**
+
+*   **The Curse It Manages:** The Periphery Blind Spot.
+*   **The Flawed Approach:** Believing side characters will progress on their own without explicit focus.
+*   **The v1.8 Cadence:**
+    1.  Implement a simple rule: **Every 10th chapter is a "B-Plot Chapter."**
+    2.  Before generating, say, Chapter 220, you run a new (hypothetical, but easy to build) helper command: `python factory.py list-characters --sort-by-last-appearance`.
+    3.  You identify a character or subplot that has been neglected.
+    4.  You then dedicate that chapter's `arc_governor.json` spotlight and `generate` seed to that peripheral element.
+*   **Why It Works:** It builds world maintenance directly into your production schedule. It ensures that no character or subplot is left to atrophy for too long. It forces you, the Conductor, to regularly look away from the main stage and tend to the health of the entire world, making it feel alive and dynamic.
+
+---
+
+#### **Protocol 5: The Ghost in the Machine (Countermeasure to "The Inability to Model True Irrationality")**
+
+*   **The Flaw It Addresses:** The system's inherent logic and optimization bias, which struggles to produce the beautiful, self-destructive, and illogical actions that define humanity.
+*   **The Principle:** If the machine cannot originate true irrationality, the Conductor must provide it with a curated library of beautiful flaws.
+*   **Implementation:**
+    1.  **Create the "Human Flaw" Library:** A new file, `memory/world_bible/human_flaws.json`, is created. This is not a list of character traits, but a collection of *irrational action templates*.
+        ```json
+        {
+          "pride_driven_destruction": "A character, when faced with defeat, chooses to destroy something of immense value (to themselves or others) rather than admit failure or let their opponent have it.",
+          "misplaced_confession": "A character, under immense emotional pressure, reveals a critical secret to the least trustworthy person available, seeking a moment of connection at any cost.",
+          "hope_against_reason": "A character pursues a course of action that is demonstrably futile, driven by a sliver of irrational hope or love."
+        }
+        ```
+    2.  **Upgrade the `Catalyst Injector`:** The `factory.py generate --inject-catalyst` command is enhanced. It can now be run as `factory.py generate --inject-catalyst human_flaw`.
+    3.  **Director's Mandate:** When this command is run, the Director is given a non-negotiable mandate: its `STRATEGIC_BRIEF` *must* create a scenario where a primary character executes one of these illogical actions.
+*   **The New Reality:** You now have a lever for injecting high-quality, compelling, *human* chaos into the hyper-rational machine. You are not asking the AI to be human. You are giving it a direct order, backed by a template, to choreograph a scene of profound humanity. This makes the Conductor the ultimate guardian of the story's soul, using the machine to execute the one thing it cannot imagine on its own.
+
+#### **5. The Cadence for "The Ghost in the Machine": The Pressure Cooker Technique**
+
+*   **The Curse It Manages:** The *Deus Ex Anima* (unearned irrationality).
+*   **The Flawed Approach:** Injecting a `human_flaw` catalyst whenever the plot feels slow.
+*   **The v1.8 Cadence:**
+    1.  The `inject-catalyst human_flaw` command is now the **final step** in a multi-chapter process.
+    2.  Before you are allowed to use it, you must first generate **at least two** preceding chapters where the seed prompts and `arc_governor` focus are explicitly designed to "build pressure" on the target character.
+    3.  **Example:** Before forcing Selene into a "pride_driven_destruction" act, you run a chapter where her competence is publicly questioned, and another where her rival achieves a major success. You are manufacturing the psychological conditions for a breakdown.
+    4.  Only then, once the character is at a breaking point, do you deploy the catalyst.
+*   **Why It Works:** The irrational act now feels like an **inevitable, emergent consequence** of mounting pressure, not a random authorial command. You are using the factory's logical, step-by-step nature to build the foundation for a believable, emotional, and beautifully illogical human moment. It's earned.
+
+---
+
+## **10.0 Core Module Specifications**
+
+This section provides the canonical, non-negotiable engineering specifications for the core Python modules located in the `/scripts/` directory. The AI developer (Claude) MUST adhere to these requirements precisely.
+
+---
+
+### **10.1 Module: `scripts/validator.py`**
+
+**Purpose:** To act as the sole, incorruptible gatekeeper for all data entering the system. Its function is to enforce the rules defined in `schemas.json`.
+
+**Primary Function:**
+*   `validate_data(data: dict, schema_type: str, schemas: dict) -> bool:`
+    *   **Description:** Validates a single data dictionary against a specified schema type.
+    *   **Parameters:**
+        *   `data: dict`: The dictionary object to be validated.
+        *   `schema_type: str`: The key corresponding to the schema in the `schemas` dictionary (e.g., "character_sheet").
+        *   `schemas: dict`: The pre-loaded `schemas.json` content.
+    *   **Returns:** `True` if validation passes, `False` otherwise.
+    *   **MUST raise `ValueError`** for invalid `schema_type`.
+
+**Core Logic Requirements:**
+1.  **Schema Existence Check:** The function MUST first verify that `schema_type` exists as a key in the `schemas` dictionary. If not, it MUST raise a `ValueError`.
+2.  **Required Fields Check:** It MUST iterate through the `required_fields` list in the specified schema and confirm that each field exists as a key in the input `data` dictionary. If any are missing, it MUST log a detailed error message specifying the missing field(s) and return `False`.
+3.  **Valid Values Check:** It MUST check if the schema defines a `valid_values` object. If so, it MUST iterate through its keys, and for each key present in the input `data`, it MUST verify that the data's value is present in the corresponding list of valid values. If not, it MUST log a detailed error specifying the field and its invalid value and return `False`.
+4.  **Logging:** All failures MUST be logged to standard error (`sys.stderr`) with clear, human-readable messages.
+
+---
+
+### **10.2 Module: `scripts/embedder.py`**
+
+**Purpose:** To convert validated text data into contextual vector embeddings using the **"Contextual Locus Embedding"** protocol and prepare it for upsertion into Qdrant.
+
+**Primary Function:**
+*   `create_contextual_embedding(new_doc: dict, doc_type: str) -> Optional[Tuple[str, List[float], dict]]:`
+    *   **Description:** Implements the Contextual Locus Embedding protocol for a single new document.
+    *   **Parameters:**
+        *   `new_doc: dict`: The new data object to be ingested.
+        *   `doc_type: str`: The schema type of the new document.
+    *   **Returns:** A tuple containing (`doc_id`, `vector`, `metadata`) on success. Returns `None` on failure.
+
+**Core Logic Requirements:**
+1.  **Locus Definition:**
+    *   The function MUST first perform a high-relevance search against the Qdrant `world_bible` collection to retrieve 1-3 existing documents most semantically similar to the content of `new_doc`.
+    *   This retrieved context plus the `new_doc` itself forms the "Contextual Locus."
+
+2.  **In-Context Embedding:**
+    *   The text from all documents in the Contextual Locus MUST be concatenated into a single string.
+    *   This entire string MUST be sent to a long-context embedding model (e.g., Jina V3) that can return per-token embeddings.
+    *   The function MUST handle API errors gracefully, logging failures and returning `None`.
+
+3.  **Vector Isolation and Pooling:**
+    *   From the full set of returned token vectors, the function MUST identify the slice corresponding to the original `new_doc` text.
+    *   It MUST apply a mean pooling strategy (averaging) to this slice of vectors to create a single, final vector representing the `new_doc`.
+
+4.  **Payload Creation:**
+    *   The function MUST construct the final payload for Qdrant.
+    *   The `doc_id` MUST be extracted from the `new_doc`.
+    *   The `vector` is the pooled vector from the previous step.
+    *   The `metadata` is the original `new_doc` dictionary itself, which serves as the Qdrant payload.
+
+---
+
+### **10.3 Module: `scripts/retriever.py`**
+
+**Purpose:** To query the Qdrant vector database and retrieve relevant context for the AI agents, implementing the **"Two-Tiered Context Retrieval"** protocol.
+
+**Primary Function:**
+*   `fetch_context_for_director(chapter_seed: str, active_characters: List[str], max_results_per_tier: int = 5) -> Dict[str, List[Dict]]:`
+    *   **Description:** Fetches and structures context for the Director agent.
+    *   **Parameters:**
+        *   `chapter_seed: str`: The initial prompt or idea for the new chapter.
+        *   `active_characters: List[str]`: A list of `doc_id`s for characters present in the scene.
+        *   `max_results_per_tier: int`: The maximum number of results to fetch for each tier.
+    *   **Returns:** A dictionary with two keys, "spotlight_context" and "ambient_echo", each containing a list of retrieved documents.
+
+**Core Logic Requirements:**
+
+1.  **Tier 1: Spotlight Query:**
+    *   The function MUST embed the `chapter_seed` to get a query vector.
+    *   It MUST perform a vector search on Qdrant.
+    *   The search MUST be filtered to include only documents where the `present_characters` metadata field (or equivalent) contains at least one of the `active_characters`.
+    *   The `limit` for this search MUST be `max_results_per_tier`.
+
+2.  **Tier 2: Ambient Echo Query:**
+    *   The function MUST perform a second, separate vector search using the same `chapter_seed` query vector.
+    *   This search MUST be filtered for documents where `doc_type` is `tension_report` AND `status` is either `unresolved` or `escalating`.
+    *   This filter may also optionally exclude documents where `involved_characters` overlaps with `active_characters` to find purely "off-screen" events.
+    *   The `limit` for this search MUST also be `max_results_per_tier`.
+
+3.  **Structuring the Output:**
+    *   The results from both queries MUST be packaged into a single dictionary.
+    *   The final return value MUST be structured as: `{"spotlight_context": [results_from_tier1], "ambient_echo": [results_from_tier2]}`.
+    *   The function MUST gracefully handle cases where one or both queries return no results, returning an empty list for the corresponding key.
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
