@@ -9,6 +9,12 @@ import os
 from typing import Any, Optional
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+try:
     from qdrant_client import AsyncQdrantClient
     from qdrant_client.models import (
         Distance,
@@ -89,16 +95,33 @@ class QdrantService:
 
         # Initialize embedding configuration based on provider
         self._embedding_model: Optional[SentenceTransformer] = None
+        self._embedding_service = None
 
         # Set embedding dimension based on provider
         embedding_provider = os.getenv("EMBEDDING_PROVIDER", "local")
         if embedding_provider == "jina":
             self.embedding_dimension = 2048  # jina-embeddings-v4 full dimension
+        elif embedding_provider == "openai":
+            openai_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+            if openai_model == "text-embedding-3-large":
+                self.embedding_dimension = 3072
+            else:
+                self.embedding_dimension = 1536  # text-embedding-3-small or ada-002
         else:
             self.embedding_dimension = 384   # sentence-transformers default
+        
+        self.embedding_provider = embedding_provider
+
+    async def _get_embedding_service(self):
+        """Lazy load the embedding service to avoid startup issues."""
+        if self._embedding_service is None:
+            # Import here to avoid circular imports
+            from .embedding_service import EmbeddingService
+            self._embedding_service = EmbeddingService(provider=self.embedding_provider)
+        return self._embedding_service
 
     async def _get_embedding_model(self) -> SentenceTransformer:
-        """Lazy load the embedding model to avoid startup issues."""
+        """Lazy load the embedding model to avoid startup issues. (Deprecated - use _get_embedding_service)"""
         if self._embedding_model is None:
             self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         return self._embedding_model
@@ -129,18 +152,18 @@ class QdrantService:
 
     async def _embed_text(self, text: str) -> list[float]:
         """
-        Generate embeddings for text using sentence-transformers.
+        Generate embeddings for text using the configured embedding service.
 
         Args:
             text: Text to embed
 
         Returns:
-            List of embedding values (384 dimensions)
+            List of embedding values (dimension depends on provider)
         """
         try:
-            model = await self._get_embedding_model()
-            embedding = model.encode(text)
-            return embedding.tolist()
+            service = await self._get_embedding_service()
+            embedding = await service.generate_embedding(text)
+            return embedding
         except Exception as e:
             logger.error(f"Failed to generate embedding for text: {e}")
             raise
@@ -156,9 +179,9 @@ class QdrantService:
             List of embedding vectors
         """
         try:
-            model = await self._get_embedding_model()
-            embeddings = model.encode(texts)
-            return embeddings.tolist()
+            service = await self._get_embedding_service()
+            embeddings = await service.generate_embeddings(texts)
+            return embeddings
         except Exception as e:
             logger.error(f"Failed to generate embeddings for {len(texts)} texts: {e}")
             raise
@@ -434,10 +457,12 @@ class QdrantService:
             return False
 
     async def close(self) -> None:
-        """Close the Qdrant client connection."""
+        """Close the Qdrant client connection and embedding service."""
         try:
             await self.client.close()
-            logger.info("Qdrant client connection closed")
+            if self._embedding_service is not None:
+                await self._embedding_service.close()
+            logger.info("Qdrant client and embedding service closed")
         except Exception as e:
             logger.error(f"Error closing Qdrant client: {e}")
 

@@ -7,9 +7,16 @@ Processes JSON documents from memory_bootstrap/ and loads them into Qdrant.
 import asyncio
 import json
 import sys
+import uuid
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import logging
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Add the src directory to the path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -93,9 +100,13 @@ class BootstrapIngester:
                     doc_data["doc_type"] = doc_type.rstrip('s')  # character_sheets -> character_sheet
                     doc_data["source_file"] = str(json_file.relative_to(bootstrap_dir))
                     
-                    # Ensure we have an ID
+                    # Ensure we have an ID and preserve original ID
                     if "id" not in doc_data:
                         doc_data["id"] = json_file.stem
+                    
+                    # Store original ID as metadata and generate UUID for Qdrant
+                    doc_data["original_id"] = doc_data["id"]
+                    doc_data["id"] = str(uuid.uuid4())
                     
                     # Extract content for embedding
                     content = self._extract_content(doc_data)
@@ -379,6 +390,57 @@ async def main():
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
         return 1
+        
+    finally:
+        await ingester.close()
+
+
+async def ingest_bootstrap_data():
+    """
+    Simple function to be called from CLI for ingesting bootstrap data.
+    Uses default settings for ease of use.
+    """
+    # Set up paths
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent
+    bootstrap_dir = project_root / "memory_bootstrap"
+    
+    logger.info("Starting bootstrap ingestion from CLI...")
+    
+    # Initialize ingester with default settings
+    ingester = BootstrapIngester(
+        embedding_provider="jina",
+        dry_run=False
+    )
+    
+    try:
+        # Discover documents
+        logger.info("Discovering documents...")
+        documents_by_type = await ingester.discover_documents(bootstrap_dir)
+        
+        if not documents_by_type:
+            logger.error("No documents found to ingest")
+            raise ValueError("No documents found in memory_bootstrap directory")
+        
+        total_docs = sum(len(docs) for docs in documents_by_type.values())
+        logger.info(f"Found {total_docs} total documents across {len(documents_by_type)} types")
+        
+        # Ingest documents
+        logger.info("Starting ingestion...")
+        stats = await ingester.ingest_documents(documents_by_type)
+        
+        # Report results
+        logger.info("Ingestion completed!")
+        logger.info(f"Total processed: {stats['total_processed']}")
+        logger.info(f"Total ingested: {stats['total_ingested']}")
+        logger.info(f"Errors: {stats['errors']}")
+        
+        # Run basic validation
+        logger.info("Running validation...")
+        if await ingester.validate_ingestion():
+            logger.info("Validation passed!")
+        else:
+            logger.warning("Validation had issues but continuing anyway")
         
     finally:
         await ingester.close()

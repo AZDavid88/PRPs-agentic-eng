@@ -115,7 +115,10 @@ class JobStore:
             List[JobState]: List of jobs awaiting approval
         """
         jobs = []
-        for key in self.redis_client.scan_iter(match="job:*"):
+        # Upstash Redis doesn't support scan_iter, use keys instead
+        # In production, consider maintaining a separate index
+        keys = self.redis_client.keys("job:*")
+        for key in keys:
             job_data = self.redis_client.get(key)
             if job_data:
                 job = JobState.model_validate_json(job_data)
@@ -133,7 +136,10 @@ class JobStore:
             List[JobState]: List of jobs with matching status
         """
         jobs = []
-        for key in self.redis_client.scan_iter(match="job:*"):
+        # Upstash Redis doesn't support scan_iter, use keys instead
+        # In production, consider maintaining a separate index
+        keys = self.redis_client.keys("job:*")
+        for key in keys:
             job_data = self.redis_client.get(key)
             if job_data:
                 job = JobState.model_validate_json(job_data)
