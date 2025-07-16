@@ -179,7 +179,7 @@ src/narrative_factory/agents/prompts/
     - `src/narrative_factory/workflows/jobs.py`
 5.  **CREATE** the main project files: `pyproject.toml`, `.gitignore`, `.env.template`, `factory.py`.
 6.  **POPULATE** `.gitignore` with standard Python and environment ignores.
-7.  **POPULATE** `pyproject.toml` with initial dependencies: `prefect`, `qdrant-client`, `pydantic`, `python-dotenv`, `typer`, `google-generativeai`, `openai`, `redis`.
+7.  **POPULATE** `pyproject.toml` with initial dependencies: `prefect`, `qdrant-client`, `pydantic`, `python-dotenv`, `typer`, `google-genai`, `openai`, `upstash-redis`.
 8.  **POPULATE** `factory.py` with boilerplate to run the Typer CLI application defined in `src/narrative_factory/cli/commands.py`.
 
 ## Validation Loop

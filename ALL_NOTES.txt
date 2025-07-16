@@ -1,7 +1,9 @@
 # Claude commands to use:
 
 /prp-base-execute <PRP names in /narrative_factory/PRPs>
-/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_03_MEMORY_PIPELINE.md
+/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_04_PREFECT_FLOW.md
+
+
 
 Task: Execute PRP_MVP_01_SCAFFOLD with full context loading
 
@@ -14,6 +16,11 @@ synthetic narrative agent with embedded cognitive lenses, cognitively valid, heu
 ---
 
 Nova, I have an ambitious project. Its planning all contained within the 2 files, in /workspaces/PRPs-agentic-eng/projects/narrative_factory, NARRATIVE_FACTORY_PRP_v3.md and Narrative factory project.txt. The vision is to build out an agentic workflow, utilizing a cubic core stack of Prefect/controlflow + Qdrant + json + python, "housing" the 4 personas I listed in /workspaces/PRPs-agentic-eng/.personas (director.txt, tactician.txt, weaver.txt, canonist.txt), and using late chunking and other RAG techniques to help maintaining the long continuity of a long serial story (1000+ chapter) from this "genre-agnostic narrative factory". But, this is simply a planning documentation, there lacks a critical amount of implementation process. So, being the all-competent system thinker that you are, help me identify the gaps within this process, what should an MVP look like, what's step-by-step development look like, etc., and make it a self-contained project within /narrative_factory that I can deploy later down the line without having to move all my files in my /workspaces/PRPs-agentic-eng folder. Please look through a critical lens and help me develop this
+
+I need you in an advisory role. See the PRPs in the folder /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs, pinpoint any gaps you see about my project. You can see the vision of my project with /workspaces/PRPs-agentic-eng/projects/narrative_factory/Narrative factory project.txt and @/workspaces/PRPs-agentic-eng/projects/narrative_factory/NARRATIVE_FACTORY_PRP_v3.md 
+I know there are tons of gaps, with the NARRATIVE_FACTORY_PRP_v3.md being a planning PRP, and the PRPs in the /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs folder are for the practical step by step implemetations, to first build out an MVP for proof of concept. Think like a system engineer, and see if those are practical enough to implement. If not, what's missing in them
+
+---
 
 Here's an analysis as a response to what I have. Digest and give me a plan on how to tackle it.
 
@@ -360,4 +367,9 @@ Conclusion:
 Stop analyzing the chasm and start building the bridge. Your instructions are clear. The architecture is defined.
 
 With this explanation, do you understand the MVP prps at /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs folder now? If so, do you need more context for them for you to build out functional scripts in the /src folder? If so, what can you do with context7 and other mcp servers at your disposal?
+
+---
+
+Nova, just finished executing the PRP_MVP_01_SCAFFOLD.md, PRP_MVP_02_AGENT_CORE.md, PRP_MVP_03_MEMORY_PIPELINE.md, PRP_MVP_04_PREFECT_FLOW.md, PRP_MVP_05_CLI.md. Please check the new files within the /workspaces/PRPs-agentic-eng/projects/narrative_factory folder, for everything that it has set up. Everything aligned with the plan?
+
 

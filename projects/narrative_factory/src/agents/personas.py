@@ -3,7 +3,6 @@ Agent personas implementation for the Narrative Factory.
 Provides base Agent class and specific agent subclasses (Director, Tactician, Weaver, Canonist).
 """
 
-import json
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -133,7 +132,7 @@ class Agent(ABC):
 
         except Exception as e:
             raise RuntimeError(f"Failed to generate content: {e}")
-    
+
     def _generate_structured_content(self, prompt: str, response_model: Type[T]) -> T:
         """
         Generate structured content using Pydantic models for validation.
@@ -172,7 +171,7 @@ class Agent(ABC):
                     temperature=0.7,
                     max_tokens=2000
                 )
-                
+
                 if response.choices[0].message.parsed:
                     return response.choices[0].message.parsed  # type: ignore
                 else:
@@ -195,7 +194,7 @@ class Agent(ABC):
                     json_str = response_text[start:end]
                 else:
                     json_str = response_text
-                
+
                 import json
                 response_dict = json.loads(json_str)
                 return response_model.model_validate(response_dict)

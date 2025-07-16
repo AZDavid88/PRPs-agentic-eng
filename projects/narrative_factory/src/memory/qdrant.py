@@ -37,9 +37,10 @@ except ImportError:
         from agents.models import ContextRetrievalResult
     except ImportError:
         # Fallback definition for testing
+        from typing import Any, Dict, List
+
         from pydantic import BaseModel
-        from typing import List, Dict, Any
-        
+
         class ContextRetrievalResult(BaseModel):
             spotlight_context: List[Dict[str, Any]]
             ambient_echo: List[Dict[str, Any]]
@@ -74,7 +75,7 @@ class QdrantService:
         # Validate cloud configuration
         if not self.url:
             raise ValueError("QDRANT_URL environment variable is required for cloud deployment")
-        
+
         if not self.api_key:
             raise ValueError("QDRANT_API_KEY environment variable is required for cloud deployment")
 
@@ -88,7 +89,7 @@ class QdrantService:
 
         # Initialize embedding configuration based on provider
         self._embedding_model: Optional[SentenceTransformer] = None
-        
+
         # Set embedding dimension based on provider
         embedding_provider = os.getenv("EMBEDDING_PROVIDER", "local")
         if embedding_provider == "jina":

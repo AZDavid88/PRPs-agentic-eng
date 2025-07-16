@@ -21,5 +21,5 @@ def status():
 
 @app.command()
 def test():
-    console.print("Narrative Factory CLI is working\!")
+    console.print("Narrative Factory CLI is working!")
     console.print("MVP scaffolding complete")
