@@ -1,0 +1,10 @@
+{
+  "id": "char_mentor",
+  "name": "Eldara Moonwhisper",
+  "role": "mentor",
+  "arc": "wise guide with hidden past",
+  "goals": ["train the protagonist", "protect ancient secrets"],
+  "flaws": ["overly secretive", "burden of past mistakes"],
+  "voice_tone": "wise but mysterious",
+  "relationships": ["char_protagonist", "char_antagonist"]
+}

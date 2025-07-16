@@ -36,6 +36,7 @@ The following directory and file structure must be created.
 │       ├── __init__.py
 │       ├── agents/
 │       │   ├── __init__.py
+│       │   ├── models.py    # NEW: Pydantic models for agent inputs/outputs
 │       │   └── personas.py  # Agent classes (Director, Tactician, etc.)
 │       ├── memory/
 │       │   ├── __init__.py
@@ -54,7 +55,7 @@ The following directory and file structure must be created.
 ├── memory/
 │   └── ... (Existing world bible, story so far)
 ├── contracts/
-│   └─�� ... (Existing agent contracts)
+│   └── ... (Existing agent contracts)
 └── outputs/
     └── ... (Generated chapters and logs)
 ```
@@ -103,12 +104,79 @@ A new `JobState` contract is introduced to manage the state of pausable tasks wi
 
 ## Implementation Blueprint
 
+### Task Zero: Bootstrap Data Creation
+
+Before implementing any code, create the `/memory_bootstrap` directory with sample test data:
+
+1. **CREATE** `/memory_bootstrap` directory structure:
+```
+memory_bootstrap/
+├── character_sheets/
+│   ├── char_protagonist.json
+│   ├── char_mentor.json
+│   └── char_antagonist.json
+├── style_guides/
+│   └── primary_style.json
+└── lore_documents/
+    ├── world_setting.json
+    └── magic_system.json
+```
+
+2. **POPULATE** sample JSON files following these schemas:
+```json
+// character_sheets/char_protagonist.json
+{
+  "id": "char_protagonist",
+  "name": "Kaelen Drakemoor", 
+  "role": "protagonist",
+  "arc": "reluctant hero discovering hidden powers",
+  "goals": ["master forbidden magic", "save the realm"],
+  "flaws": ["impulsive", "distrusts authority"],
+  "voice_tone": "determined but conflicted",
+  "relationships": ["mentor_eldara", "rival_thorne"]
+}
+
+// style_guides/primary_style.json  
+{
+  "id": "primary_style",
+  "genre": "epic fantasy",
+  "tone": "serious with moments of hope",
+  "voice_patterns": "third person limited, vivid imagery",
+  "example_passages": ["The shadows writhed..."],
+  "pov_style": "close third person"
+}
+
+// lore_documents/world_setting.json
+{
+  "id": "world_setting", 
+  "title": "The Sundered Realms",
+  "content": "A world where magic is forbidden...",
+  "category": "worldbuilding",
+  "importance_level": "high"
+}
+```
+
+### Agent Prompt Integration
+
+3. **CREATE** `src/narrative_factory/agents/prompts/` directory with agent prompt files:
+```
+src/narrative_factory/agents/prompts/
+├── director.txt
+├── tactician.txt  
+├── weaver.txt
+└── canonist.txt
+```
+
+4. **COPY** persona content from `/workspaces/PRPs-agentic-eng/.personas/` to corresponding prompt files.
+
 ### List of tasks to be completed
 
-1.  **CREATE** the primary directory structure: `src/narrative_factory`, `scripts`, `tests`, `PRPs`.
+1.  **CREATE** the primary directory structure: `src/narrative_factory`, `scripts`, `tests`.
 2.  **CREATE** sub-packages within `src/narrative_factory`: `agents`, `memory`, `workflows`, `cli`.
 3.  **CREATE** empty `__init__.py` files in all Python packages and sub-packages to make them importable.
-4.  **CREATE** a new file `src/narrative_factory/workflows/jobs.py` for the `JobStore` service.
+4.  **CREATE** the new, empty files for our defined contracts and services:
+    - `src/narrative_factory/agents/models.py`
+    - `src/narrative_factory/workflows/jobs.py`
 5.  **CREATE** the main project files: `pyproject.toml`, `.gitignore`, `.env.template`, `factory.py`.
 6.  **POPULATE** `.gitignore` with standard Python and environment ignores.
 7.  **POPULATE** `pyproject.toml` with initial dependencies: `prefect`, `qdrant-client`, `pydantic`, `python-dotenv`, `typer`, `google-generativeai`, `openai`, `redis`.

@@ -84,65 +84,150 @@ use context7 for library /qdrant/qdrant-client topic "collection creation and ve
 
 ## Implementation Blueprint
 
+### MVP Simplified Implementation
+
+Based on Context7 documentation patterns, implement these core components:
+
+1. **QdrantService with Two-Tiered Retrieval**
+```python
+# In src/narrative_factory/memory/qdrant.py
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, VectorParams, Distance, PointStruct
+from typing import List, Dict, Any
+import os
+
+class QdrantService:
+    def __init__(self, url: Optional[str] = None, api_key: Optional[str] = None):
+        self.url = url or os.getenv("QDRANT_URL")
+        self.api_key = api_key or os.getenv("QDRANT_API_KEY")
+        self.client = AsyncQdrantClient(url=self.url, api_key=self.api_key)
+        
+    async def create_collections(self):
+        """Create world_bible and story_so_far collections with Jina v4 2048-dim vectors."""
+        collections = ["world_bible", "story_so_far"] 
+        for collection_name in collections:
+            if not await self.client.collection_exists(collection_name):
+                await self.client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(size=2048, distance=Distance.COSINE)
+                )
+    
+    async def fetch_context_for_director(
+        self, 
+        chapter_seed: str, 
+        active_characters: List[str], 
+        max_results_per_tier: int = 5
+    ) -> Dict[str, List[Dict]]:
+        """Two-tiered context retrieval: Spotlight + Ambient Echo"""
+        
+        # Generate embedding for chapter seed (simplified - use sentence-transformers locally)
+        query_vector = await self._embed_text(chapter_seed)
+        
+        # Tier 1: Spotlight Query - filtered by present_characters
+        spotlight_results = await self.client.search(
+            collection_name="world_bible",
+            query_vector=query_vector,
+            query_filter=Filter(
+                must=[FieldCondition(
+                    key='present_characters',
+                    match=active_characters  # Filter for active characters
+                )]
+            ),
+            limit=max_results_per_tier
+        )
+        
+        # Tier 2: Ambient Echo Query - tension reports with unresolved status  
+        ambient_results = await self.client.search(
+            collection_name="story_so_far", 
+            query_vector=query_vector,
+            query_filter=Filter(
+                must=[
+                    FieldCondition(key='doc_type', match='tension_report'),
+                    FieldCondition(key='status', match=['unresolved', 'escalating'])
+                ]
+            ),
+            limit=max_results_per_tier
+        )
+        
+        return {
+            "spotlight_context": [hit.payload for hit in spotlight_results],
+            "ambient_echo": [hit.payload for hit in ambient_results]
+        }
+    
+    async def _embed_text(self, text: str) -> List[float]:
+        """Use EmbeddingService with Jina AI v4 for production embeddings"""
+        from .embedding_service import EmbeddingService
+        embedding_service = EmbeddingService(provider="jina")  # 2048 dimensions
+        return await embedding_service.generate_embedding(text)
+```
+
+2. **Simplified Ingestion Pipeline**
+```python
+# In scripts/ingest.py  
+import json
+import asyncio
+from pathlib import Path
+from narrative_factory.memory.qdrant import QdrantService
+
+async def ingest_bootstrap_data():
+    """Ingest sample data from memory_bootstrap directory."""
+    service = QdrantService()
+    await service.create_collections()
+    
+    bootstrap_dir = Path("memory_bootstrap")
+    
+    # Process each document type
+    for doc_type_dir in bootstrap_dir.iterdir():
+        if doc_type_dir.is_dir():
+            collection = "world_bible"  # MVP: everything goes to world_bible
+            
+            for json_file in doc_type_dir.glob("*.json"):
+                with open(json_file) as f:
+                    doc_data = json.load(f)
+                
+                # Generate embedding and create point
+                content = json.dumps(doc_data)  # Simple content extraction
+                embedding = await service._embed_text(content)
+                
+                point = PointStruct(
+                    id=doc_data.get("id", json_file.stem),
+                    vector=embedding,
+                    payload={
+                        **doc_data,
+                        "doc_type": doc_type_dir.name.rstrip('s'),  # character_sheets -> character_sheet
+                        "present_characters": doc_data.get("relationships", [])
+                    }
+                )
+                
+                await service.client.upsert(
+                    collection_name=collection,
+                    points=[point]
+                )
+                
+                print(f"Ingested {json_file.name} into {collection}")
+
+if __name__ == "__main__":
+    asyncio.run(ingest_bootstrap_data())
+```
+
 ### List of tasks to be completed
 
-1.  **MODIFY** `src/narrative_factory/memory/qdrant.py`.
-2.  **IMPLEMENT** a `QdrantService` class.
-    -   `__init__(self)`: Initializes the `QdrantClient`, connecting to the URL specified in environment variables.
-    -   `create_collections(self)`: A method to create the `world_bible` and `story_so_far` collections if they don't exist.
-3.  **IMPLEMENT** an `EmbeddingService` class for handling embedding generation.
-    -   `__init__(self)`: Initialize with API credentials (support multiple providers: Jina AI, OpenAI, etc.)
-    -   `generate_embeddings(texts: List[str], task: str = "text-matching")`: Generate embeddings for text inputs
-    -   `get_embedding_dimension()`: Return the embedding dimension for collection configuration
-    -   `_batch_process(texts: List[str], batch_size: int = 100)`: Handle batch processing with rate limiting
-    -   `_handle_embedding_errors(failed_texts: List[str])`: Retry logic for failed embeddings
-4.  **IMPLEMENT** an `ingest_data` function within the service.
-    -   It should take a list of documents (dictionaries) with metadata.
-    -   **Document Processing Pipeline:**
-        - Extract and clean text content
-        - Chunk large documents into manageable pieces
-        - Generate embeddings using the `EmbeddingService`
-        - Prepare metadata (doc_type, characters, status, etc.)
-    -   **Batch Upsert Operations:**
-        - Use `client.upsert()` with optimized batch sizes
-        - Handle embedding failures gracefully
-        - Implement retry logic for network failures
-    -   It should then `upsert` the points into the appropriate Qdrant collection.
-5.  **IMPLEMENT** the `fetch_context_for_director` function within the service.
-    -   It must accept a `chapter_seed` and a list of `active_characters`.
-    -   **Tier 1 (Spotlight Query):** Embed the seed using `EmbeddingService`. Perform a search on Qdrant, filtering by `present_characters`.
-    -   **Tier 2 (Ambient Echo Query):** Use the same seed embedding. Perform a second search, filtering for `doc_type: tension_report` and `status: unresolved` or `escalating`.
-    -   The function must return a dictionary structured as `{"spotlight_context": [...], "ambient_echo": [...]}`.
+1.  **CREATE** `src/narrative_factory/memory/qdrant.py` with the `QdrantService` class above.
+2.  **CREATE** `scripts/ingest.py` with the bootstrap data ingestion pipeline.
+3.  **IMPLEMENT** basic two-tiered retrieval using Qdrant Filter and FieldCondition patterns.
+4.  **INTEGRATE** sentence-transformers for local embedding generation (no external API required for MVP).
+5.  **CREATE** collection initialization method that sets up world_bible and story_so_far collections.
+6.  **IMPLEMENT** the `fetch_context_for_director` method with exact signature required by agents.
 
-### Enhanced Data Models
+### Environment Configuration for MVP
 
-```python
-# In src/narrative_factory/memory/models.py
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
-from enum import Enum
+```bash
+# Add to .env.template
+QDRANT_URL=http://localhost:6333
 
-class DocumentType(str, Enum):
-    WORLD_BIBLE = "world_bible"
-    STORY_PROGRESS = "story_so_far"
-    TENSION_REPORT = "tension_report"
-    CHARACTER_PROFILE = "character_profile"
-
-class DocumentStatus(str, Enum):
-    RESOLVED = "resolved"
-    UNRESOLVED = "unresolved"
-    ESCALATING = "escalating"
-
-class NarrativeDocument(BaseModel):
-    """Base model for all narrative documents to be stored in Qdrant."""
-    id: str
-    content: str
-    doc_type: DocumentType
-    characters: List[str] = Field(default_factory=list)
-    status: Optional[DocumentStatus] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    chapter_number: Optional[int] = None
-    embedding: Optional[List[float]] = None  # Generated by EmbeddingService
+# For local development, no API keys needed with sentence-transformers
+# JINA_API_KEY=your_key_here  # Optional for future enhancement
+# OPENAI_API_KEY=your_key_here  # Optional for future enhancement
 ```
 
 ### Jina AI Integration Implementation
@@ -193,7 +278,7 @@ class EmbeddingService:
     def get_embedding_dimension(self) -> int:
         """Return embedding dimension for collection configuration."""
         if self.provider == "jina":
-            return 1024  # jina-embeddings-v4 dimension
+            return 2048  # jina-embeddings-v4 full dimension
         elif self.provider == "openai":
             return 3072  # text-embedding-3-large dimension
         return 1536  # default fallback
@@ -300,16 +385,19 @@ class EmbeddingService:
 
 ```bash
 # In .env.template
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=your-qdrant-api-key
+# Qdrant Cloud Configuration (Production)
+QDRANT_URL=https://your-cluster-id.us-east4-0.gcp.cloud.qdrant.io:6333
+QDRANT_API_KEY=your_qdrant_cloud_api_key
 
-# Embedding Service Configuration (choose one)
-EMBEDDING_PROVIDER=jina  # Options: jina, openai, google
+# Embedding Service Configuration
+EMBEDDING_PROVIDER=jina  # Options: jina, openai, local
 
-# Jina AI Configuration
-JINA_API_KEY=jina_0652bfc906d14590bf46815dc705aab8e7T5kQ5d6RF7vu3QK9Odfn2UjjK6
+# Jina AI v4 Configuration (Production embeddings - 2048 dimensions)
+JINA_API_KEY=your_jina_api_key_here
+JINA_EMAIL=your_email@example.com  # Optional: for account identification
 JINA_MODEL=jina-embeddings-v4
 JINA_TASK=text-matching
+JINA_DIMENSIONS=2048  # jina-embeddings-v4 output size
 
 # OpenAI Configuration (alternative)
 OPENAI_API_KEY=your-openai-key

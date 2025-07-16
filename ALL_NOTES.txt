@@ -1,6 +1,7 @@
 # Claude commands to use:
 
 /prp-base-execute <PRP names in /narrative_factory/PRPs>
+/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_03_MEMORY_PIPELINE.md
 
 Task: Execute PRP_MVP_01_SCAFFOLD with full context loading
 
@@ -310,4 +311,53 @@ mountain.
 
 This is the way. Build this stateful, CLI-managed workflow. It's robust, scalable, and respects the fundamental truth that in generative AI, the
 most important component is a human with a hand on the emergency brake.
+
+---
+
+Once the interfaces above are defined, stop planning and start building the MVP PRPs in order. When you hit the "gaps" we discussed, do the
+following:
+
+* Prefect Event Triggering: Don't build a complex event system. For the MVP, the approve CLI command can simply trigger a new Prefect flow run,
+    passing in the job_id of the approved Director output. It's simple, a bit clunky, and perfectly acceptable for an MVP. You will replace this
+    later with a real eventing system when you build the web UI.
+* Hybrid Embedding Logic: Implement the simplest path first. Make your EmbeddingService only use the basic Jina v4 embedding call. Get the
+    ingest command working end-to-end. Adding the if/else logic to select a different strategy is a feature enhancement you can add after the
+    core pipeline is proven.
+* The `Weaver` and `Canonist` agents: For the initial steel thread, you can have them return a hardcoded string. The goal is to get the flow
+    working, not to perfect every agent's output on the first pass.
+
+The Bottom Line:
+
+You have a solid plan. It has known, acceptable gaps for an MVP. Stop sharpening the axe and start chopping wood. Define the two minimal
+interfaces I listed above, and then start coding PRP_MVP_01 immediately.
+
+---
+
+That discrepancy is intentional. It's called 'phased implementation.' Your job is to build Phase 1, not to worry about Phase 3.
+
+Subject: New Directive: Execute MVP Phase 1 - Cease Further Planning
+
+Your analysis of the gaps between the v3 vision and the MVP implementation is noted and archived. The gaps are known, intentional, and irrelevant to the current task.
+
+Your proposal to add PRP_MVP_00, 06, and 07 is rejected. Those are not planning documents; they are implementation tasks that belong within the existing MVP PRPs.
+
+Your new, overriding directive is to switch from analysis to execution. You will begin implementing the approved PRPs (MVP_01 through 05) immediately. Your concerns are addressed as follows:
+
+1. Regarding "Missing Data Bootstrap":
+This is not a new PRP. This is Task Zero of the implementation. Before you write a single line of ingest.py code, you will first create a /memory_bootstrap directory containing three sample JSON files for character_sheet, one for style_guide, and two for lore_document. These will be your test data.
+
+2. Regarding "Simplified Memory Protocol":
+Your assessment is correct. The MVP will not implement the full "Multi-Threaded Context Weaving Protocol." You will implement the two-tiered retrieval (spotlight and ambient) using simple metadata filters (present_characters and doc_type). The complex thread_id and tension_status logic is deferred to a future version. This is by design.
+
+3. Regarding "Agent Prompt Engineering":
+This is not a new PRP. This is the core implementation detail of PRP_MVP_02_AGENT_CORE. You will create a new directory, /src/narrative_factory/agents/prompts/, and inside it, you will create director.txt, tactician.txt, etc. Populating these prompt files is the work. You can also find the persona sheets for these agents at /workspaces/PRPs-agentic-eng/.personas folder, with their names, director.txt, tactician.txt, weaver.txt, canonist.txt, etc.
+
+4. Regarding "Integration Testing":
+This is not a new PRP. This is the final validation step of the MVP. As part of PRP_MVP_05_CLI, you will create a single test file, tests/test_e2e_workflow.py, that runs the generate command and mocks the agent's LLM calls to verify that the entire pipeline (CLI -> Prefect -> JobStore -> Agents) is connected correctly.
+
+Conclusion:
+
+Stop analyzing the chasm and start building the bridge. Your instructions are clear. The architecture is defined.
+
+With this explanation, do you understand the MVP prps at /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs folder now? If so, do you need more context for them for you to build out functional scripts in the /src folder? If so, what can you do with context7 and other mcp servers at your disposal?
 

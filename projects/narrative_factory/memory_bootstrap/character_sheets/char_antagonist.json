@@ -1,0 +1,10 @@
+{
+  "id": "char_antagonist",
+  "name": "Lord Thorne Shadowbane",
+  "role": "antagonist",
+  "arc": "fallen hero seeking redemption through control",
+  "goals": ["control forbidden magic", "reshape the world order"],
+  "flaws": ["consumed by past failures", "inability to trust others"],
+  "voice_tone": "commanding yet tormented",
+  "relationships": ["char_protagonist", "char_mentor"]
+}

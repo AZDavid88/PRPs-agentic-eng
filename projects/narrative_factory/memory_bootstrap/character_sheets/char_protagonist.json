@@ -1,0 +1,10 @@
+{
+  "id": "char_protagonist",
+  "name": "Kaelen Drakemoor", 
+  "role": "protagonist",
+  "arc": "reluctant hero discovering hidden powers",
+  "goals": ["master forbidden magic", "save the realm"],
+  "flaws": ["impulsive", "distrusts authority"],
+  "voice_tone": "determined but conflicted",
+  "relationships": ["mentor_eldara", "rival_thorne"]
+}

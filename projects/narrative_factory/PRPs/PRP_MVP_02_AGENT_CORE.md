@@ -5,23 +5,24 @@ description: "Defines and implements the core Agent classes that form the cognit
 
 ## Goal
 
-To create a robust, reusable, and well-defined set of Python classes for the AI agents (Director, Tactician, Weaver, Canonist). This includes a base `Agent` class that handles common functionality and specific subclasses for each role.
+To create a robust, reusable, and well-defined set of Python classes for the AI agents (Director, Tactician, Weaver, Canonist). This includes a base `Agent` class and specific subclasses that **use and return strongly-typed Pydantic models for all inputs and outputs.**
 
 ## Why
 
-- **Abstraction:** A base class prevents code duplication by handling shared logic like LLM client initialization and persona loading.
-- **Clarity:** Separating each agent's logic into its own class makes the system easier to understand, debug, and extend.
-- **Testability:** Encapsulating agent logic within classes allows for targeted and effective unit testing.
+- **Abstraction:** A base class prevents code duplication by handling shared logic like LLM client initialization.
+- **Clarity & Type Safety:** Using Pydantic models as data contracts makes the data flow between agents explicit, validated, and less prone to runtime errors.
+- **Testability:** Encapsulating agent logic within classes that operate on clear data contracts allows for targeted and effective unit testing.
 
 ## What
 
 ### Success Criteria
 
+- [ ] A new `src/narrative_factory/agents/models.py` file contains the Pydantic models for `StrategicBrief` and `ChapterBlueprint`.
 - [ ] A base `Agent` class is created in `src/narrative_factory/agents/personas.py`.
-- [ ] The base class can load a persona file from the `/.personas/` directory and initialize an LLM client.
 - [ ] Subclasses for `Director`, `Tactician`, `Weaver`, and `Canonist` are created, inheriting from the base `Agent`.
-- [ ] Each subclass has a unique `execute` method that takes a context string and returns a structured output (e.g., a Pydantic model).
-- [ ] Unit tests are created to verify that agents can be initialized and can execute their core logic.
+- [ ] The `DirectorAgent.execute` method is updated to return a `StrategicBrief` Pydantic model.
+- [ ] The `TacticianAgent.execute` method is updated to accept a `StrategicBrief` model as input and return a `ChapterBlueprint` model.
+- [ ] Unit tests are created to verify that agents produce the correct, validated Pydantic models.
 
 ## Context7 Documentation Injection
 
@@ -72,52 +73,133 @@ use context7 for library /context7/pydantic_dev topic "BaseModel validation and 
 ### Documentation & References
 
 ```yaml
-- file: /workspaces/PRPs-agentic-eng/.personas/NOVA.txt
+- file: /workspaces/PRPs-agentic-eng/.personas/DIRECTOR.txt
   why: Example of a persona file that the Agent class will need to parse.
 
-- file: /workspaces/PRPs-agentic-eng/projects/narrative_factory/contracts/director.json
-  why: Example of a contract that a specific agent (Director) will use to structure its prompts.
+- file: /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_01_SCAFFOLD.md
+  why: Defines the location of the new `models.py` file.
 
 - doc: https://pydantic-docs.helpmanual.io/
-  why: Pydantic models should be used for all structured outputs from agents to ensure type safety and validation.
+  why: Pydantic models are mandatory for all structured inputs and outputs from agents to ensure type safety and validation.
 ```
 
 ## Implementation Blueprint
 
 ### Data models and structure
 
+The following Pydantic models **must be created** in `src/narrative_factory/agents/models.py`. They are the official data contracts for the Director and Tactician agents.
+
 ```python
-# In a new file: src/narrative_factory/agents/models.py
+# In: src/narrative_factory/agents/models.py
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Dict, Optional, Literal
+from datetime import datetime
+from uuid import UUID, uuid4
+
+# MVP Simplified Models based on actual persona requirements
 
 class StrategicBrief(BaseModel):
-    """Output from the Director Agent."""
-    chapter_goal: str = Field(description="The primary narrative goal of this chapter.")
-    scene_blueprints: List[str] = Field(description="A list of high-level scenes to be written.")
-    tension_points: List[str] = Field(description="Key tensions to escalate or resolve.")
+    """
+    The official mission brief from the Director to the Tactician.
+    Based on Director persona PROTOCOL 1: PROPULSION PROTOCOL output format.
+    """
+    # Header fields
+    title: str = Field(description="A working title for the chapter/sequence")
+    scope: Literal["SINGLE_CHAPTER", "MULTI_CHAPTER_ARC", "SAGA_GENESIS"] = Field(description="Strategic scope determination")
+    estimated_chapters: str = Field(description="Director's estimate, e.g., '2-4' or '1'")
+    pov_character_id: str = Field(description="Character name for POV")
+    
+    # Body fields  
+    goal: str = Field(description="Clear, one-sentence objective for the scene/sequence")
+    key_events: List[str] = Field(description="Essential plot points framed as event descriptors")
+    emotional_turning_point: str = Field(description="Core emotional shift directive")
+    cliffhanger_concept: str = Field(description="One-sentence concept for chapter's final hook")
+
+class ChapterBeatStructure(BaseModel):
+    """
+    Based on Tactician persona MANDATORY BEAT STRUCTURE from PROTOCOL 0.
+    Each beat provides the Weaver with everything needed for compelling prose.
+    """
+    moment_anchor: str = Field(description="1-2 sentence present-tense physical action and sensory detail")
+    internal_shift: str = Field(description="Character's from->to emotional/cognitive journey within this beat")
+    micro_conflict: str = Field(description="Specific point of friction, resistance, or complication")
+    narrative_payoff: Optional[str] = Field(None, description="System message, discovery, or key reveal for this beat")
+    pacing_density: Literal["Expansive", "Moderate", "Compressed", "Crescendo", "Decrescendo"] = Field(
+        default="Moderate", description="Pacing directive from Tactician appendix"
+    )
+
+class ChapterMetadata(BaseModel):
+    """
+    Based on Tactician persona step 7: Generate Chapter Metadata.
+    """
+    chapter_goal: str = Field(description="Core narrative objective in single sentence")
+    hook_concept: str = Field(description="Core concept of final HOOK beat in single sentence") 
+    discovery_log: List[str] = Field(description="Key conceptual revelations protagonist makes")
 
 class ChapterBlueprint(BaseModel):
-    """Output from the Tactician Agent."""
-    beats: List[str] = Field(description="A detailed, beat-by-beat outline of the chapter.")
+    """
+    The detailed, beat-by-beat blueprint from the Tactician to the Weaver.
+    Based on Tactician persona PROTOCOL 0 final output structure.
+    """
+    # Section 1: Metadata
+    metadata: ChapterMetadata = Field(description="Chapter goal, hook, and discovery log")
+    
+    # Section 2: Title suggestions  
+    title_suggestions: List[str] = Field(description="3-5 potential chapter titles from ChapterTitlingModule")
+    
+    # Section 3: Beat list
+    beats: List[ChapterBeatStructure] = Field(description="3-7 granular scene beats as choreographic instructions")
+    
+    # Traceability
+    brief_id: str = Field(description="ID of source StrategicBrief for traceability")
 
-# ... other models for Weaver and Canonist outputs
+# Job State Models for Redis-based HITL workflow
+class JobState(BaseModel):
+    """
+    Job state contract for Redis-based Human-in-the-Loop workflow.
+    """
+    job_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique job identifier")
+    agent: Literal["Director", "Tactician", "Weaver", "Canonist"] = Field(description="Agent responsible")
+    status: Literal["processing", "pending_approval", "approved", "rejected", "complete"] = Field(description="Current job status")
+    input_payload: Dict = Field(description="Input data for the job")
+    output_payload: Optional[Dict] = Field(None, description="Agent output data")
+    feedback_history: List[Dict] = Field(default_factory=list, description="Human feedback iterations")
+    created_at: datetime = Field(default_factory=datetime.now, description="Job creation timestamp")
+    updated_at: datetime = Field(default_factory=datetime.now, description="Last update timestamp")
+
+# Memory/Context Models for MVP simplified two-tiered retrieval
+class MemoryDocument(BaseModel):
+    """
+    Simplified document model for MVP Qdrant storage.
+    """
+    id: str = Field(description="Document identifier")
+    content: str = Field(description="Document text content") 
+    doc_type: Literal["character_sheet", "style_guide", "lore_document", "tension_report"] = Field(description="Document classification")
+    present_characters: List[str] = Field(default_factory=list, description="Character IDs for spotlight filtering")
+    metadata: Dict = Field(default_factory=dict, description="Additional document metadata")
+
+class ContextRetrievalResult(BaseModel):
+    """
+    Two-tiered context retrieval result from memory pipeline.
+    """
+    spotlight_context: List[Dict] = Field(description="High-relevance context for current POV/scene")
+    ambient_echo: List[Dict] = Field(description="Background tension and unresolved conflicts")
 ```
 
 ### List of tasks to be completed
 
-1.  **CREATE** `src/narrative_factory/agents/models.py` and define the Pydantic models for agent outputs.
+1.  **CREATE** `src/narrative_factory/agents/models.py` and define the Pydantic models as specified above.
 2.  **MODIFY** `src/narrative_factory/agents/personas.py`.
-3.  **IMPLEMENT** a base `Agent` class in `personas.py`:
-    -   `__init__(self, persona_name: str)`: Takes the name of the persona (e.g., "DIRECTOR").
-    -   `_load_persona(self)`: Private method to load the corresponding `.txt` file.
-    -   `_initialize_client(self)`: Private method to set up the `google-generativeai` client.
-    -   `execute(self, context: str, feedback_history: list | None = None) -> BaseModel`: Public method to be overridden by subclasses.
+3.  **IMPLEMENT** a base `Agent` class in `personas.py`.
+    -   `__init__(self, persona_name: str)`
+    -   `_load_persona(self)`
+    -   `_initialize_client(self)`
 4.  **IMPLEMENT** subclasses `DirectorAgent`, `TacticianAgent`, `WeaverAgent`, `CanonistAgent` in `personas.py`.
     -   Each subclass should inherit from `Agent`.
-    -   Each should override the `execute` method to perform its specific role, using its persona and contracts to generate a prompt.
-    -   The `execute` method for each agent MUST return its corresponding Pydantic model (e.g., `DirectorAgent` returns `StrategicBrief`).
+    -   The `DirectorAgent.execute` method MUST return a `StrategicBrief` model.
+    -   The `TacticianAgent.execute` method MUST accept a `StrategicBrief` model as input and return a `ChapterBlueprint` model.
+    -   The `WeaverAgent` and `CanonistAgent` can have placeholder implementations for now.
 
 ## Validation Loop
 
@@ -133,31 +215,44 @@ mypy src/narrative_factory/agents/
 
 ### Level 2: Unit Tests
 
+The unit tests must be updated to reflect the new Pydantic model outputs.
+
 ```python
 # In tests/test_agents.py
 
 import pytest
+import json
 from narrative_factory.agents.personas import DirectorAgent
-
-def test_director_agent_initialization():
-    """Tests that the Director agent can be initialized and loads its persona."""
-    agent = DirectorAgent() # Assuming a default or direct name
-    assert agent.persona_name == "DIRECTOR"
-    assert "Strategic Planner" in agent.persona_content # Check for a keyword from the persona file
+from narrative_factory.agents.models import StrategicBrief
 
 def test_director_agent_execution_mocked(mocker):
-    """Tests the execute method with a mocked LLM call."""
-    # Mock the LLM client's generate_content method
+    """Tests the execute method with a mocked LLM call to ensure it returns a valid Pydantic model."""
+    # Mock the LLM client's response
+    mock_response = mocker.MagicMock()
+    # The mock must return a JSON string that matches the StrategicBrief schema
+    mock_brief_dict = {
+        "chapter_title": "Test Title",
+        "narrative_goal": "Test Goal",
+        "key_plot_points": ["Point 1"],
+        "character_focus": [{
+            "character_id": "char_test",
+            "objective": "Test objective",
+            "emotional_arc": "Test arc"
+        }],
+        "tension_dynamics": "Test tension"
+    }
+    mock_response.text = json.dumps(mock_brief_dict)
+    
     mock_llm_client = mocker.patch('google.generativeai.GenerativeModel.generate_content')
-    mock_llm_client.return_value.text = '{"chapter_goal": "Test Goal", "scene_blueprints": ["Scene 1"], "tension_points": ["Tension 1"]}'
+    mock_llm_client.return_value = mock_response
 
     agent = DirectorAgent()
     result = agent.execute("Test chapter seed.")
 
     # Assert that the output is a valid Pydantic model
-    from narrative_factory.agents.models import StrategicBrief
     assert isinstance(result, StrategicBrief)
-    assert result.chapter_goal == "Test Goal"
+    assert result.chapter_title == "Test Title"
+    assert result.character_focus[0].character_id == "char_test"
 
 ```
 
