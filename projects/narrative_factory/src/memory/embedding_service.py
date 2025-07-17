@@ -178,10 +178,10 @@ class JinaEmbeddingProvider(EmbeddingProvider):
 
         except httpx.HTTPError as e:
             logger.error(f"Jina API request failed: {e}")
-            raise RuntimeError(f"Jina API request failed: {e}")
+            raise RuntimeError(f"Jina API request failed: {e}") from e
         except Exception as e:
             logger.error(f"Jina embedding generation failed: {e}")
-            raise RuntimeError(f"Embedding generation failed: {e}")
+            raise RuntimeError(f"Embedding generation failed: {e}") from e
 
     async def close(self) -> None:
         """Close the HTTP client."""

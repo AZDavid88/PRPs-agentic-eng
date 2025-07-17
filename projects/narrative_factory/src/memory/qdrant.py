@@ -1,11 +1,14 @@
 """
 Qdrant vector database service for the Narrative Factory memory pipeline.
-Implements two-tiered retrieval: Spotlight and Ambient Echo queries.
+Implements two-tiered retrieval: Spotlight and Ambient Echo queries with
+advanced connection pooling, resource management, and production-ready patterns.
 """
 
 import asyncio
-import logging
-import os
+import time
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 try:
@@ -43,30 +46,221 @@ except ImportError:
         from agents.models import ContextRetrievalResult
     except ImportError:
         # Fallback definition for testing
-        from typing import Any, Dict, List
+        from typing import Any
 
         from pydantic import BaseModel
 
         class ContextRetrievalResult(BaseModel):
-            spotlight_context: List[Dict[str, Any]]
-            ambient_echo: List[Dict[str, Any]]
+            spotlight_context: list[dict[str, Any]]
+            ambient_echo: list[dict[str, Any]]
 
-logger = logging.getLogger(__name__)
+# Enhanced imports for production features
+from src.config import config
+from src.exceptions import (
+    DatabaseError,
+    handle_errors,
+    with_retry,
+)
+from src.health import register_health_check
+from src.logger import get_logger, log_execution_time
+
+logger = get_logger(__name__)
+
+
+@dataclass
+class ConnectionStats:
+    """Statistics for connection monitoring."""
+    total_connections: int = 0
+    active_connections: int = 0
+    failed_connections: int = 0
+    total_requests: int = 0
+    total_errors: int = 0
+    last_error_time: Optional[float] = None
+    created_at: float = field(default_factory=time.time)
+
+    def reset(self) -> None:
+        """Reset statistics."""
+        self.total_connections = 0
+        self.active_connections = 0
+        self.failed_connections = 0
+        self.total_requests = 0
+        self.total_errors = 0
+        self.last_error_time = None
+        self.created_at = time.time()
+
+
+class QdrantConnectionPool:
+    """Connection pool manager for Qdrant clients."""
+
+    def __init__(
+        self,
+        url: str,
+        api_key: Optional[str] = None,
+        max_connections: int = 10,
+        min_connections: int = 2,
+        connection_timeout: int = 30,
+        max_retries: int = 3
+    ):
+        """Initialize connection pool."""
+        self.url = url
+        self.api_key = api_key
+        self.max_connections = max_connections
+        self.min_connections = min_connections
+        self.connection_timeout = connection_timeout
+        self.max_retries = max_retries
+
+        self._pool: asyncio.Queue = asyncio.Queue(maxsize=max_connections)
+        self._active_connections: set = set()
+        self._stats = ConnectionStats()
+        self._initialized = False
+        self._lock = asyncio.Lock()
+
+    async def initialize(self) -> None:
+        """Initialize the connection pool."""
+        if self._initialized:
+            return
+
+        async with self._lock:
+            if self._initialized:
+                return
+
+            logger.info(f"Initializing Qdrant connection pool with {self.min_connections} connections")
+
+            # Create minimum number of connections
+            for _ in range(self.min_connections):
+                try:
+                    client = await self._create_client()
+                    await self._pool.put(client)
+                    self._stats.total_connections += 1
+                    logger.debug("Created initial connection")
+                except Exception as e:
+                    logger.error(f"Failed to create initial connection: {e}")
+                    self._stats.failed_connections += 1
+                    raise DatabaseError(f"Failed to initialize connection pool: {e}") from e
+
+            self._initialized = True
+            logger.info("Qdrant connection pool initialized successfully")
+
+    async def _create_client(self) -> AsyncQdrantClient:
+        """Create a new Qdrant client."""
+        try:
+            client = AsyncQdrantClient(
+                url=self.url,
+                api_key=self.api_key,
+                timeout=self.connection_timeout,
+                prefer_grpc=False
+            )
+
+            # Test connection
+            await client.get_collections()
+            return client
+
+        except Exception as e:
+            logger.error(f"Failed to create Qdrant client: {e}")
+            raise DatabaseError(f"Failed to create Qdrant client: {e}") from e
+
+    @asynccontextmanager
+    async def get_connection(self) -> AsyncGenerator[AsyncQdrantClient, None]:
+        """Get a connection from the pool."""
+        if not self._initialized:
+            await self.initialize()
+
+        client = None
+        try:
+            # Try to get existing connection
+            try:
+                client = await asyncio.wait_for(
+                    self._pool.get(),
+                    timeout=self.connection_timeout
+                )
+                self._active_connections.add(client)
+                self._stats.active_connections += 1
+                logger.debug("Retrieved connection from pool")
+            except asyncio.TimeoutError:
+                # Pool is empty, create new connection if under limit
+                if len(self._active_connections) < self.max_connections:
+                    client = await self._create_client()
+                    self._active_connections.add(client)
+                    self._stats.total_connections += 1
+                    self._stats.active_connections += 1
+                    logger.debug("Created new connection")
+                else:
+                    raise DatabaseError("Connection pool exhausted") from None
+
+            yield client
+
+        except Exception as e:
+            self._stats.total_errors += 1
+            self._stats.last_error_time = time.time()
+            logger.error(f"Connection error: {e}")
+            raise
+
+        finally:
+            if client:
+                self._active_connections.discard(client)
+                self._stats.active_connections -= 1
+
+                # Return connection to pool
+                try:
+                    await self._pool.put(client)
+                    logger.debug("Returned connection to pool")
+                except asyncio.QueueFull:
+                    # Pool is full, close connection
+                    await client.close()
+                    logger.debug("Closed excess connection")
+
+    async def close(self) -> None:
+        """Close all connections in the pool."""
+        logger.info("Closing Qdrant connection pool")
+
+        # Close all connections in pool
+        while not self._pool.empty():
+            try:
+                client = await self._pool.get()
+                await client.close()
+            except Exception as e:
+                logger.error(f"Error closing pooled connection: {e}")
+
+        # Close active connections
+        for client in self._active_connections:
+            try:
+                await client.close()
+            except Exception as e:
+                logger.error(f"Error closing active connection: {e}")
+
+        self._active_connections.clear()
+        self._initialized = False
+        logger.info("Qdrant connection pool closed")
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get connection pool statistics."""
+        return {
+            "total_connections": self._stats.total_connections,
+            "active_connections": self._stats.active_connections,
+            "failed_connections": self._stats.failed_connections,
+            "total_requests": self._stats.total_requests,
+            "total_errors": self._stats.total_errors,
+            "last_error_time": self._stats.last_error_time,
+            "pool_size": self._pool.qsize(),
+            "max_connections": self.max_connections,
+            "uptime_seconds": time.time() - self._stats.created_at
+        }
 
 
 class QdrantService:
     """
-    Service for managing Qdrant vector database operations.
-    Implements two-tiered context retrieval for narrative generation.
+    Production-ready service for managing Qdrant vector database operations.
+    Implements two-tiered context retrieval for narrative generation with
+    connection pooling, retry logic, and comprehensive error handling.
     """
 
     def __init__(self, url: Optional[str] = None, api_key: Optional[str] = None):
         """
-        Initialize the Qdrant service for cloud deployment.
+        Initialize the Qdrant service with production-ready configuration.
 
         Args:
-            url: Qdrant Cloud endpoint URL (defaults to QDRANT_URL env var)
-            api_key: Qdrant Cloud API key (required for cloud instances)
+            url: Qdrant endpoint URL (defaults to config)
+            api_key: Qdrant API key (defaults to config)
         """
         if not QDRANT_AVAILABLE:
             raise ImportError("qdrant-client is required. Install with: pip install qdrant-client")
@@ -74,43 +268,62 @@ class QdrantService:
         if not SENTENCE_TRANSFORMERS_AVAILABLE:
             raise ImportError("sentence-transformers is required. Install with: pip install sentence-transformers")
 
-        # Get cloud configuration
-        self.url = url or os.getenv("QDRANT_URL")
-        self.api_key = api_key or os.getenv("QDRANT_API_KEY")
+        # Get configuration from config system
+        self.url = url or config.qdrant.url
+        self.api_key = api_key or config.qdrant.api_key
 
-        # Validate cloud configuration
+        # Validate configuration
         if not self.url:
-            raise ValueError("QDRANT_URL environment variable is required for cloud deployment")
+            raise DatabaseError("Qdrant URL is required")
 
-        if not self.api_key:
-            raise ValueError("QDRANT_API_KEY environment variable is required for cloud deployment")
-
-        # Initialize cloud client
-        self.client = AsyncQdrantClient(
+        # Initialize connection pool with config-driven settings
+        self.connection_pool = QdrantConnectionPool(
             url=self.url,
             api_key=self.api_key,
-            timeout=60.0,  # Longer timeout for cloud
-            prefer_grpc=False,  # Use REST for cloud compatibility
+            max_connections=config.app.max_concurrent_tasks,
+            min_connections=2,
+            connection_timeout=config.qdrant.timeout,
+            max_retries=config.qdrant.retries
         )
 
-        # Initialize embedding configuration based on provider
-        self._embedding_model: Optional[SentenceTransformer] = None
+        # Initialize embedding configuration from config
         self._embedding_service = None
+        self.embedding_dimension = config.qdrant.vector_size
+        self.embedding_provider = config.models.embedding_provider
 
-        # Set embedding dimension based on provider
-        embedding_provider = os.getenv("EMBEDDING_PROVIDER", "local")
-        if embedding_provider == "jina":
-            self.embedding_dimension = 2048  # jina-embeddings-v4 full dimension
-        elif embedding_provider == "openai":
-            openai_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-            if openai_model == "text-embedding-3-large":
-                self.embedding_dimension = 3072
-            else:
-                self.embedding_dimension = 1536  # text-embedding-3-small or ada-002
-        else:
-            self.embedding_dimension = 384   # sentence-transformers default
-        
-        self.embedding_provider = embedding_provider
+        # Register health check
+        register_health_check("qdrant_service", self._health_check)
+
+        logger.info(f"QdrantService initialized with URL: {self.url}")
+
+    async def _health_check(self, include_detailed: bool = False) -> dict[str, Any]:
+        """Health check for the Qdrant service."""
+        try:
+            async with self.connection_pool.get_connection() as client:
+                collections = await client.get_collections()
+
+                pool_stats = self.connection_pool.get_stats()
+
+                details = {}
+                if include_detailed:
+                    details = {
+                        "collections_count": len(collections.collections),
+                        "pool_stats": pool_stats,
+                        "embedding_provider": self.embedding_provider,
+                        "embedding_dimension": self.embedding_dimension
+                    }
+
+                return {
+                    "status": "healthy",
+                    "message": "Qdrant service operational",
+                    "details": details
+                }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "message": f"Qdrant service error: {str(e)}",
+                "details": {"error": str(e)} if include_detailed else None
+            }
 
     async def _get_embedding_service(self):
         """Lazy load the embedding service to avoid startup issues."""
@@ -126,29 +339,35 @@ class QdrantService:
             self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         return self._embedding_model
 
+    @with_retry(max_attempts=3, base_delay=1.0)
+    @log_execution_time(__name__)
     async def create_collections(self) -> None:
         """Create the required collections for the narrative factory."""
-        collections = ["world_bible", "story_so_far"]
+        collections = [
+            config.qdrant.world_bible_collection,
+            config.qdrant.story_so_far_collection
+        ]
 
         for collection_name in collections:
             try:
-                exists = await self.client.collection_exists(collection_name)
-                if not exists:
-                    logger.info(f"Creating collection: {collection_name}")
-                    await self.client.create_collection(
-                        collection_name=collection_name,
-                        vectors_config=VectorParams(
-                            size=self.embedding_dimension,
-                            distance=Distance.COSINE
+                async with self.connection_pool.get_connection() as client:
+                    exists = await client.collection_exists(collection_name)
+                    if not exists:
+                        logger.info(f"Creating collection: {collection_name}")
+                        await client.create_collection(
+                            collection_name=collection_name,
+                            vectors_config=VectorParams(
+                                size=self.embedding_dimension,
+                                distance=Distance.COSINE
+                            )
                         )
-                    )
-                    logger.info(f"Collection {collection_name} created successfully")
-                else:
-                    logger.info(f"Collection {collection_name} already exists")
+                        logger.info(f"Collection {collection_name} created successfully")
+                    else:
+                        logger.info(f"Collection {collection_name} already exists")
 
             except Exception as e:
                 logger.error(f"Failed to create collection {collection_name}: {e}")
-                raise
+                raise DatabaseError(f"Failed to create collection {collection_name}: {e}") from e
 
     async def _embed_text(self, text: str) -> list[float]:
         """
@@ -271,6 +490,9 @@ class QdrantService:
             logger.error(f"Failed to ingest {len(documents)} documents: {e}")
             raise
 
+    @with_retry(max_attempts=3, base_delay=1.0)
+    @log_execution_time(__name__)
+    @handle_errors(reraise=False, return_default=ContextRetrievalResult(spotlight_context=[], ambient_echo=[]))
     async def fetch_context_for_director(
         self,
         chapter_seed: str,
@@ -278,7 +500,7 @@ class QdrantService:
         max_results_per_tier: int = 5
     ) -> ContextRetrievalResult:
         """
-        Two-tiered context retrieval for the Director agent.
+        Two-tiered context retrieval for the Director agent with production-ready patterns.
 
         Tier 1 - Spotlight Query: High-relevance context filtered by present characters
         Tier 2 - Ambient Echo: Background tension and unresolved conflicts
@@ -295,43 +517,44 @@ class QdrantService:
             # Generate query embedding
             query_vector = await self._embed_text(chapter_seed)
 
-            # Tier 1: Spotlight Query - Character-specific context
-            spotlight_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="present_characters",
-                        match=MatchAny(any=active_characters)
-                    )
-                ]
-            )
+            async with self.connection_pool.get_connection() as client:
+                # Tier 1: Spotlight Query - Character-specific context
+                spotlight_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="present_characters",
+                            match=MatchAny(any=active_characters)
+                        )
+                    ]
+                )
 
-            spotlight_results = await self.client.search(
-                collection_name="world_bible",
-                query_vector=query_vector,
-                query_filter=spotlight_filter,
-                limit=max_results_per_tier
-            )
+                spotlight_results = await client.search(
+                    collection_name=config.qdrant.world_bible_collection,
+                    query_vector=query_vector,
+                    query_filter=spotlight_filter,
+                    limit=max_results_per_tier
+                )
 
-            # Tier 2: Ambient Echo Query - Unresolved tensions
-            ambient_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="doc_type",
-                        match=MatchValue(value="tension_report")
-                    ),
-                    FieldCondition(
-                        key="status",
-                        match=MatchAny(any=["unresolved", "escalating"])
-                    )
-                ]
-            )
+                # Tier 2: Ambient Echo Query - Unresolved tensions
+                ambient_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="doc_type",
+                            match=MatchValue(value="tension_report")
+                        ),
+                        FieldCondition(
+                            key="status",
+                            match=MatchAny(any=["unresolved", "escalating"])
+                        )
+                    ]
+                )
 
-            ambient_results = await self.client.search(
-                collection_name="story_so_far",
-                query_vector=query_vector,
-                query_filter=ambient_filter,
-                limit=max_results_per_tier
-            )
+                ambient_results = await client.search(
+                    collection_name=config.qdrant.story_so_far_collection,
+                    query_vector=query_vector,
+                    query_filter=ambient_filter,
+                    limit=max_results_per_tier
+                )
 
             # Format results
             spotlight_context = [
@@ -364,11 +587,7 @@ class QdrantService:
 
         except Exception as e:
             logger.error(f"Failed to fetch context for director: {e}")
-            # Return empty context on failure rather than crashing
-            return ContextRetrievalResult(
-                spotlight_context=[],
-                ambient_echo=[]
-            )
+            raise DatabaseError(f"Failed to fetch context for director: {e}") from e
 
     async def search_by_content(
         self,
@@ -457,14 +676,37 @@ class QdrantService:
             return False
 
     async def close(self) -> None:
-        """Close the Qdrant client connection and embedding service."""
+        """Close the Qdrant connection pool and embedding service."""
         try:
-            await self.client.close()
+            await self.connection_pool.close()
             if self._embedding_service is not None:
                 await self._embedding_service.close()
-            logger.info("Qdrant client and embedding service closed")
+            logger.info("Qdrant connection pool and embedding service closed")
         except Exception as e:
-            logger.error(f"Error closing Qdrant client: {e}")
+            logger.error(f"Error closing Qdrant service: {e}")
+            raise DatabaseError(f"Error closing Qdrant service: {e}") from e
+
+    def get_service_stats(self) -> dict[str, Any]:
+        """Get comprehensive service statistics."""
+        return {
+            "connection_pool": self.connection_pool.get_stats(),
+            "embedding_provider": self.embedding_provider,
+            "embedding_dimension": self.embedding_dimension,
+            "service_url": self.url,
+            "collections": [
+                config.qdrant.world_bible_collection,
+                config.qdrant.story_so_far_collection
+            ]
+        }
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.connection_pool.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
 
 
 async def main():

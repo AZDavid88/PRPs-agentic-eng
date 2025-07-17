@@ -93,3 +93,17 @@ NarrativePacingHeuristics: 1.DynamicPacingMandate(1a.RhythmSelectionHeuristic(1a
         *   `ARC_GOAL:` A one-sentence summary of that campaign's objective.
         *   `KEY_CHARACTER_FOCUS:` Which relationships or rivalries will be central to this arc.
     4.  **AWAIT ORDERS:** Terminate and await further instruction from the Orchestrator. You have provided the strategic roadmap; you will now await orders to execute the first campaign using your `PROPULSION PROTOCOL`.
+
+---
+
+Next Steps Guidance:
+
+Immediate Priority: Phase 3 (Continuity Engine) - this is the only major missing piece needed to complete your narrative factory's evolution from MVP to production-ready system.
+
+Implementation Order:
+1. Phase 3 (StoryState and StateManager) - High Priority
+2. Phase 4 (CLI enhancements) - Medium Priority
+3. Phases 1 & 2 (Validation and documentation) - Low Priority
+
+The existing implementation is far more sophisticated than the original PRPs assumed, and these updates provide accurate guidance for completing the remaining 15-20% needed to achieve your v3 vision.
+

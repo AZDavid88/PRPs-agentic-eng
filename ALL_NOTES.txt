@@ -1,8 +1,7 @@
 # Claude commands to use:
 
 /prp-base-execute <PRP names in /narrative_factory/PRPs>
-/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_04_PREFECT_FLOW.md
-
+/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_NF_PHASE_01_FOUNDATION.md
 
 
 Task: Execute PRP_MVP_01_SCAFFOLD with full context loading
@@ -17,8 +16,14 @@ synthetic narrative agent with embedded cognitive lenses, cognitively valid, heu
 
 Nova, I have an ambitious project. Its planning all contained within the 2 files, in /workspaces/PRPs-agentic-eng/projects/narrative_factory, NARRATIVE_FACTORY_PRP_v3.md and Narrative factory project.txt. The vision is to build out an agentic workflow, utilizing a cubic core stack of Prefect/controlflow + Qdrant + json + python, "housing" the 4 personas I listed in /workspaces/PRPs-agentic-eng/.personas (director.txt, tactician.txt, weaver.txt, canonist.txt), and using late chunking and other RAG techniques to help maintaining the long continuity of a long serial story (1000+ chapter) from this "genre-agnostic narrative factory". But, this is simply a planning documentation, there lacks a critical amount of implementation process. So, being the all-competent system thinker that you are, help me identify the gaps within this process, what should an MVP look like, what's step-by-step development look like, etc., and make it a self-contained project within /narrative_factory that I can deploy later down the line without having to move all my files in my /workspaces/PRPs-agentic-eng folder. Please look through a critical lens and help me develop this
 
-I need you in an advisory role. See the PRPs in the folder /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs, pinpoint any gaps you see about my project. You can see the vision of my project with /workspaces/PRPs-agentic-eng/projects/narrative_factory/Narrative factory project.txt and @/workspaces/PRPs-agentic-eng/projects/narrative_factory/NARRATIVE_FACTORY_PRP_v3.md 
+
+I need you in an advisory role. See the PRPs in the folder /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs, with the naming conventions of PRP_MVP_*.md, and see the scripts that have been implemented for them in the /workspaces/PRPs-agentic-eng/projects/narrative_factory/src folder, and /workspaces/PRPs-agentic-eng/projects/narrative_factory/scripts folder. The plan was to create an MVP for a genre-agnostic narrative factory, in a CLI, to make sure the infrastructure is feasible to create a "housing" for 4 prompt personas (director.txt, tactician.txt, weaver.txt, canonist.txt), that allow them to access a knowledge base, and write out long serial stories (1000+ chapters per story) from there, at a chapter-by-chapter basis, you can find their details at folder /workspaces/PRPs-agentic-eng/.personas, and should be copied to the folder /workspaces/PRPs-agentic-eng/projects/narrative_factory/src/agents/prompts, which is more accessible to the project. Now that we're done, here's what the plan for the next phases is: 
+
+
+You can see the vision of my project with /workspaces/PRPs-agentic-eng/projects/narrative_factory/Narrative factory project.txt and @/workspaces/PRPs-agentic-eng/projects/narrative_factory/NARRATIVE_FACTORY_PRP_v3.md 
 I know there are tons of gaps, with the NARRATIVE_FACTORY_PRP_v3.md being a planning PRP, and the PRPs in the /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs folder are for the practical step by step implemetations, to first build out an MVP for proof of concept. Think like a system engineer, and see if those are practical enough to implement. If not, what's missing in them
+
+Before I implement your suggestions, can I get more clarity? 
 
 ---
 
@@ -372,4 +377,287 @@ With this explanation, do you understand the MVP prps at /workspaces/PRPs-agenti
 
 Nova, just finished executing the PRP_MVP_01_SCAFFOLD.md, PRP_MVP_02_AGENT_CORE.md, PRP_MVP_03_MEMORY_PIPELINE.md, PRP_MVP_04_PREFECT_FLOW.md, PRP_MVP_05_CLI.md. Please check the new files within the /workspaces/PRPs-agentic-eng/projects/narrative_factory folder, for everything that it has set up. Everything aligned with the plan?
 
+---
+
+🎯 MVP Status & Story Generation Guide
+
+✅ What's Working Perfectly:
+
+1. Complete HITL Pipeline - The full human-in-the-loop workflow is operational
+2. Director Agent - Creates compelling strategic briefs with proper structure
+3. Tactician Agent - Generates detailed beat-by-beat chapter blueprints
+4. CLI Interface - All commands work (generate, status, review, approve, reject)
+5. Data Ingestion - Bootstrap data successfully loaded into Qdrant
+6. Redis Job Management - Stateful, pausable workflow with approval/rejection
+7. Prefect Orchestration - Multi-stage async workflow execution
+
+⚠️ Minor Issue Found:
+
+The Weaver and Canonist agents are generating placeholder text instead of full narrative prose. This is likely due to the agents being configured more
+for testing than production narrative generation.
+
+🎯 How to Use the MVP (Current State):
+
+You can already use the MVP for strategic narrative planning:
+
+1. Generate Strategic Briefs:
+python factory.py generate "Your story seed here"
+2. Review & Approve Director's Vision:
+python factory.py status
+python factory.py review <director_job_id>
+python factory.py approve <director_job_id>
+3. Get Detailed Chapter Blueprints:
+python factory.py review <tactician_job_id>
+python factory.py approve <tactician_job_id>
+
+The Director and Tactician provide professional-grade narrative planning that could be used by human writers to create compelling stories.
+
+📖 Example Output You Just Saw:
+
+Director Output: "The Sundered Awakening" - A saga genesis scope with clear emotional arc and cliffhanger concept
+
+Tactician Output: 5-beat structure with sophisticated pacing controls:
+- Beat 1: Discovery (Moderate pacing)
+- Beat 2: Investigation (Expansive pacing)
+- Beat 3: Triggering Event (Crescendo pacing)
+- Beat 4: Consequence (Compressed pacing)
+- Beat 5: New Reality (Decrescendo pacing)
+
+This demonstrates that the core narrative intelligence of the MVP is working exceptionally well. The system successfully created a compelling story
+concept from your seed prompt about Kaelen and the ancient tome.
+
+The MVP is ready for strategic narrative development - you have a powerful tool for generating story concepts and detailed structural plans that human
+writers can then flesh out into full prose.
+
+---
+
+My analysis reveals a few core truths:
+
+1. The Vision is Grand, the MVP is a Shack. Your v3.md describes a sleek, web-enabled, multi-user, cost-analyzing, AI-powered content studio.
+    Your current implementation is a collection of Python scripts and a CLI. This isn't a criticism; it's a scope assessment. The gap is
+    enormous.
+2. You've Already Made Smart Pivots. The MVP PRPs were...aspirational. They talked about agents and memory but lacked a rigid, enforceable
+    structure. Your Narrative factory project.txt and the very existence of factory.py and an ingest.py script show a gravitation towards a more
+    practical, centralized, CLI-driven workflow. This is a good deviation. It's a move from "let's hope the agents figure it out" to "let's build
+    a robust, controllable machine."
+3. The Core Challenge is State and Scale. The leap from a single-shot CLI command (generate chapter) to a system that maintains continuity over
+    1000+ chapters is a quantum leap. This isn't about better prompts; it's about building a durable, stateful system with robust data management
+    and operator tools.
+
+You don't need a simple bridge. You need a multi-stage rocket. You need to evolve your thinking from "individual scripts" to a "cohesive
+application."
+
+Here is the NOVA-Optimized Roadmap to get you from your current CLI tool to the heart of your v3 vision. We're shelving the full web UI for a
+moment to focus on building the powerful engine it will eventually control.
+
+---
+
+Phase 1: Solidify the Foundation (The "Stop Building on Sand" Phase)
+
+Your current structure is a good start, but it's loose. We need to formalize it into a real application.
+
+* Action 1: Centralize Configuration. Create a single config.py or settings.py file. Hardcoding things like Qdrant URLs or model names in
+    scripts is a recipe for disaster. This file will hold all settings, API keys (loaded from .env), and constants.
+* Action 2: Formalize the "Application" Core. Your factory.py is a good entry point. Let's build it out. Refactor the logic from ingest.py and
+    other scripts into a cohesive src/narrative_factory package. The CLI in src/cli will call functions within this package. This promotes code
+    reuse and clarity.
+* Action 3: Implement Real Testing. Create a /tests directory. Start with simple unit tests for your validation logic. You can't build a
+    skyscraper without knowing the steel is sound.
+* Action 4: Robust Logging. Don't just print to the console. Implement a proper logging system (Python's logging module is fine) that writes to
+    a file. When a generation run fails at 3 AM, you'll thank me.
+
+Phase 2: The Persona & Knowledge Integration (The "Core Brain" Phase)
+
+This is where we bring the soul of your project to life.
+
+* Action 1: Build the `PersonaManager`. Create a class in your src that is responsible for loading the director.txt, tactician.txt, etc.,
+    personas. This manager will be responsible for formatting the system prompts and providing them to the agents.
+* Action 2: Define the `KnowledgeBase` Interface. Create a class that is the only way agents can access Qdrant. It will have methods like
+    fetch_character_profile("Elara") or find_relevant_lore("ancient prophecy"). This abstracts the vector search complexity away from the agents.
+* Action 3: Integrate Personas into the Workflow. Your Director agent shouldn't just get a task; it should be initialized with its persona from
+    the PersonaManager and given access to the KnowledgeBase. Its entire "worldview" is shaped by these two components.
+
+Phase 3: Achieving Long-Term Continuity (The "1000-Chapter Engine" Phase)
+
+This is the hardest and most crucial part.
+
+* Action 1: Design the `StoryState` Model. You need a way to represent the state of the narrative between chapters. This isn't just the text.
+    It's a Pydantic model or dataclass containing: chapter_number, active_plot_threads, character_locations, character_relationships_summary,
+    unresolved_tensions.
+* Action 2: Implement State Persistence. After each chapter, the Canonist agent's final job is to update this StoryState model and save it as a
+    file (e.g., outputs/state/story_state_chapter_247.json).
+* Action 3: The Generation Loop. The Director's first action for the next chapter is to load the latest StoryState file. This becomes the most
+    critical piece of its context, ensuring it knows what just happened.
+
+Phase 4: The Conductor's Toolkit (The "Human-in-the-Loop" Phase)
+
+Your v3.md wisely understands that this can't be fully autonomous. You need tools to steer the ship.
+
+* Action 1: Build the `Memory Inspector`. A new CLI command: narrative-factory inspect --character Elara. This would use the KnowledgeBase to
+    pull up her profile and recent involvements.
+* Action 2: Create the `Catalyst Injector`. Another CLI command: narrative-factory generate --inject "A mysterious stranger arrives with a 
+    warning.". This allows you to manually inject events to break the story out of a rut.
+* Action 3: Implement a `dry-run` Mode. A flag for the generate command (--dry-run) that shows you the prompts that would be sent to the LLMs
+    without actually sending them. This is invaluable for debugging and saving money.
+
+---
+
+This roadmap transforms your collection of scripts into a robust, stateful application. It directly addresses the core challenges of your
+vision while deferring the complexity of a full web UI. By completing these phases, you will have built the powerful engine that the v3 UI is
+designed to sit on top of.
+
+---
+
+# validation gate commands after finish implementing PRP_NF_PHASES
+
+PRP_NF_PHASE_01_FOUNDATION.md
+
+# Static Analysis
+ruff check src/
+mypy src/ --strict
+ 
+# Functional Correctness
+uv run python src/cli/main.py workflow generate --story-seed "Test validation" --dry-run
+uv run python -c "from src.memory.service import QdrantService; print('Memory service imports successfully')"
+uv run python -c "from src.agents.director import DirectorAgent; print('Director agent imports successfully')"
+uv run python -c "from src.config import models, qdrant, app; print('Config system operational')"
+uv run pytest tests/ -v --tb=short
+
+PRP_NF_PHASE_02_INTEGRATION.md
+# Static Analysis
+ruff check src/narrative_factory/
+mypy src/narrative_factory/ --strict
+ 
+# Functional Correctness
+uv run python -c "
+from src.agents.director import DirectorAgent
+from src.agents.tactician import TacticianAgent
+from src.agents.weaver import WeaverAgent
+from src.agents.canonist import CanonicistAgent
+from src.memory.service import QdrantService
+ 
+# Test agent instantiation with persona loading
+memory_service = QdrantService()
+director = DirectorAgent(memory_service=memory_service)
+tactician = TacticianAgent(memory_service=memory_service)
+weaver = WeaverAgent(memory_service=memory_service)
+canonist = CanonicistAgent(memory_service=memory_service)
+
+print('All advanced agents instantiated successfully')
+print(f'Director persona loaded: {len(director.persona) > 100}')
+print(f'Memory service operational: {memory_service is not sNone}')"
+uv run python -c "
+from src.workflows.generation import narrative_generation_workflow
+print('Workflow system imports successfully')"
+uv run pytest tests/test_agents.py -v --tb=short
+uv run python src/cli/main.py workflow generate --story-seed "Integration test" --dry-run --interactive=false
+
+PRP_NF_PHASE_03_CONTINUITY.md
+
+# Static Analysis
+ruff check src/
+mypy src/ --strict
+ 
+# Functional Correctness
+uv run python -c "
+import asyncio
+from src.models.story_state import StoryState, PlotThread, CharacterState, KnowledgeRevelation
+ 
+# Test comprehensive model creation
+async def test_story_state(): 
+    state = StoryState(current_chapter=3)
+ 
+    # Test plot thread management
+    thread_id = state.add_plot_thread('Ancient prophecy discovered', priority=8, characters=['Protagonist', 'Oracle'])
+    assert len(state.active_plot_threads) == 1
+ 
+    # Test knowledge revelation tracking
+    state.add_knowledge_revelation('Magic exists in this world', 'confirmed', ['Changes understanding of reality'])
+    assert len(state.protagonist_knowledge) == 1
+ 
+    # Test state validation
+    assert state.current_chapter == 3
+    assert state.story_id is not None
+    print('Enhanced StoryState model validation PASSED')
+
+asyncio.run(test_story_state())
+"
+uv run python -c "
+import asyncio
+from src.services.state_manager import StateManager
+from src.models.story_state import StoryState
+from src.config import STATE_DIR
+ 
+async def test_state_manager():
+    sm = StateManager()
+
+    # Test state lifecycle
+    initial_state = await sm.load_latest_state()
+    assert initial_state.current_chapter == 1
+ 
+    # Create complex state
+    test_state = StoryState(current_chapter=2)
+    test_state.add_plot_thread('Test thread', priority=5)
+    test_state.add_knowledge_revelation('Test knowledge')
+ 
+    # Test async save/load
+    save_success = await sm.save_state(test_state)
+    assert save_success
+ 
+    loaded_state = await sm.load_latest_state()
+    assert loaded_state.current_chapter == 2
+    assert len(loaded_state.active_plot_threads) == 1
+ 
+    # Test state summary
+    summary = await sm.get_state_summary()
+    assert summary['current_chapter'] == 2
+    assert summary['active_plot_threads'] == 1
+ 
+    print('StateManager integration test PASSED')
+ 
+asyncio.run(test_state_manager())
+"
+uv run python -c "
+from src.services.state_manager import StateManager
+from src.models.story_state import StoryState
+ 
+def test_canonist_integration():
+    sm = StateManager()
+ 
+    # Test conversion from Canonist output format
+    mock_canonist_report = {
+        'NEW_TENSION_STATE_REPORT': ['New conflict discovered', 'Character relationship strained'],
+        'NEW_KNOWLEDGE_STATE': ['Magic system mechanics', 'World history revealed']
+    }
+
+    previous_state = StoryState(current_chapter=1)
+    new_state = sm.create_state_from_canonist_output(mock_canonist_report, previous_state)
+ 
+    assert new_state.current_chapter == 2
+    assert len(new_state.unresolved_tensions) == 2
+    assert len(new_state.protagonist_knowledge) == 2
+ 
+    print('Canonist integration test PASSED')
+ 
+test_canonist_integration()
+"
+uv run python src/cli/main.py workflow generate --story-seed "Continuity test" --dry-run --interactive=false
+
+PRP_NF_PHASE_04_TOOLKIT.md
+
+# Static Analysis
+ruff check src/
+mypy src/ --strict
+ 
+# Functional Correctness
+uv run python src/cli/main.py inspect memory "Elara" --limit 3
+uv run python src/cli/main.py inspect memory "ancient prophecy" --collection world_bible
+uv run python src/cli/main.py inspect state --details
+uv run python src/cli/main.py workflow generate "A storm approaches" --catalyst "Ancient magic awakens" --dry-run
+uv run python src/cli/main.py workflow catalyst "A mysterious stranger arrives" --priority 8
+uv run python src/cli/main.py workflow generate "The hero's journey begins" --dry-run --interactive=false
+uv run python src/cli/main.py workflow generate "Integration test" --dry-run
+uv run pytest tests/test_cli_enhancements.py -v
+uv run python src/cli/main.py inspect --help
+uv run python src/cli/main.py workflow generate --help
 

@@ -372,12 +372,12 @@ class WeaverAgent(Agent):
             # Initialize chapter with metadata
             chapter_title = chapter_blueprint.title_suggestions[0] if chapter_blueprint.title_suggestions else "Chapter"
             chapter_prose_sections = []
-            
+
             # Process each beat individually for richer prose generation
             for i, beat in enumerate(chapter_blueprint.beats, 1):
                 beat_prose = self._generate_beat_prose(beat, i, chapter_blueprint, context)
                 chapter_prose_sections.append(beat_prose)
-            
+
             # Combine all beat prose into final chapter
             full_chapter = f"""# {chapter_title}
 
@@ -389,7 +389,7 @@ class WeaverAgent(Agent):
 *Hook Concept: {chapter_blueprint.metadata.hook_concept}*"""
 
             return full_chapter
-                
+
         except Exception as e:
             # Enhanced fallback with more detail
             return f"""# {chapter_blueprint.title_suggestions[0] if chapter_blueprint.title_suggestions else "Chapter"}
@@ -455,7 +455,7 @@ Transform this single beat into compelling, publication-ready narrative prose.
 
             # Generate the beat prose
             response = self._generate_content(prompt)
-            
+
             # Validate and return the prose
             if response and len(response.strip()) > 30:
                 return response.strip()
@@ -464,7 +464,7 @@ Transform this single beat into compelling, publication-ready narrative prose.
                 return f"""Beat {beat_number}: {beat.moment_anchor}
 
 The scene developed according to the Tactician's specifications, with the character experiencing {beat.internal_shift.lower()} while confronting {beat.micro_conflict.lower()}. The pacing followed {beat.pacing_density.lower()} density guidelines to achieve the intended narrative impact."""
-                
+
         except Exception as e:
             # Beat-specific fallback
             return f"""Beat {beat_number}: {beat.moment_anchor}
@@ -526,28 +526,28 @@ Provide your analysis in the following JSON format:
 
             # Generate the validation using the LLM
             response = self._generate_content(prompt)
-            
+
             # Try to parse the response as JSON
             try:
                 import json
                 import re
-                
+
                 # Extract JSON from response if it's wrapped in other text
                 json_match = re.search(r'\{.*\}', response, re.DOTALL)
                 if json_match:
                     json_str = json_match.group(0)
                     validation_result = json.loads(json_str)
-                    
+
                     # Ensure required fields are present
                     required_fields = ["validation_status", "notes", "suggestions"]
                     for field in required_fields:
                         if field not in validation_result:
                             validation_result[field] = "Not provided"
-                    
+
                     # Ensure suggestions is a list
                     if not isinstance(validation_result.get("suggestions"), list):
                         validation_result["suggestions"] = []
-                    
+
                     return validation_result
                 else:
                     # If no JSON found, create structured response from text
@@ -558,7 +558,7 @@ Provide your analysis in the following JSON format:
                         "canon_compliance": "Analysis completed",
                         "continuity_score": 85
                     }
-                    
+
             except (json.JSONDecodeError, AttributeError):
                 # If JSON parsing fails, create structured response from text
                 return {
@@ -568,7 +568,7 @@ Provide your analysis in the following JSON format:
                     "canon_compliance": "Analysis completed",
                     "continuity_score": 85
                 }
-                
+
         except Exception as e:
             # Enhanced fallback with error information
             return {

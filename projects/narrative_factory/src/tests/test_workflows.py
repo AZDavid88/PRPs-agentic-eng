@@ -68,7 +68,7 @@ async def test_initial_generation_flow_creates_pending_job(mock_job_store, mock_
 
         # Mock job store operations
         mock_job_store.create_job.return_value = "test-job-id"
-        
+
         # Mock the async memory service call
         from unittest.mock import AsyncMock
         mock_memory_service.fetch_context_for_director = AsyncMock(return_value=Mock(model_dump=lambda: {"test": "context"}))
@@ -177,7 +177,7 @@ def test_director_task_failure_handling(mock_job_store, mock_memory_service):
 
         # Mock job store operations
         mock_job_store.create_job.return_value = "test-job-id"
-        
+
         # Mock the async memory service call
         from unittest.mock import AsyncMock
         mock_memory_service.fetch_context_for_director = AsyncMock(return_value=Mock(model_dump=lambda: {"test": "context"}))
