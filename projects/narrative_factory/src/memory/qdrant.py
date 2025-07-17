@@ -438,10 +438,11 @@ class QdrantService:
             )
 
             # Upsert to collection
-            await self.client.upsert(
-                collection_name=collection_name,
-                points=[point]
-            )
+            async with self.connection_pool.get_connection() as client:
+                await client.upsert(
+                    collection_name=collection_name,
+                    points=[point]
+                )
 
             logger.info(f"Document {doc_id} ingested to {collection_name}")
 
@@ -479,10 +480,11 @@ class QdrantService:
                 points.append(point)
 
             # Batch upsert
-            await self.client.upsert(
-                collection_name=collection_name,
-                points=points
-            )
+            async with self.connection_pool.get_connection() as client:
+                await client.upsert(
+                    collection_name=collection_name,
+                    points=points
+                )
 
             logger.info(f"Ingested {len(documents)} documents to {collection_name}")
 
@@ -611,12 +613,13 @@ class QdrantService:
         try:
             query_vector = await self._embed_text(query_text)
 
-            results = await self.client.search(
-                collection_name=collection_name,
-                query_vector=query_vector,
-                query_filter=filters,
-                limit=limit
-            )
+            async with self.connection_pool.get_connection() as client:
+                results = await client.search(
+                    collection_name=collection_name,
+                    query_vector=query_vector,
+                    query_filter=filters,
+                    limit=limit
+                )
 
             return [
                 {
@@ -642,7 +645,8 @@ class QdrantService:
             Collection information dictionary
         """
         try:
-            info = await self.client.get_collection(collection_name)
+            async with self.connection_pool.get_connection() as client:
+                info = await client.get_collection(collection_name)
             return {
                 "name": collection_name,
                 "vectors_count": info.vectors_count,
@@ -668,7 +672,8 @@ class QdrantService:
             True if successful, False otherwise
         """
         try:
-            await self.client.delete_collection(collection_name)
+            async with self.connection_pool.get_connection() as client:
+                await client.delete_collection(collection_name)
             logger.info(f"Collection {collection_name} deleted successfully")
             return True
         except Exception as e:

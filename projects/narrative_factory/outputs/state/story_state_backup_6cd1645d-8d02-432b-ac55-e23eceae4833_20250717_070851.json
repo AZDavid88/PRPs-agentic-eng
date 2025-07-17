@@ -1,0 +1,52 @@
+{
+  "current_chapter": 1,
+  "story_id": "6cd1645d-8d02-432b-ac55-e23eceae4833",
+  "created_at": "2025-07-17T07:08:51.963881",
+  "last_updated": "2025-07-17T07:08:51.964073",
+  "active_plot_threads": [
+    {
+      "id": "d4d2d925-5969-4c4b-9ec0-f13b534bd6dc",
+      "description": "Stranger arrives during thunderstorm",
+      "priority": 9,
+      "introduced_chapter": 1,
+      "last_updated_chapter": 1,
+      "status": "active",
+      "related_characters": [
+        "Protagonist",
+        "Stranger"
+      ]
+    },
+    {
+      "id": "988e5963-8ac6-4c77-ba12-abc49f345e33",
+      "description": "Ancient artifact goes missing from museum",
+      "priority": 7,
+      "introduced_chapter": 1,
+      "last_updated_chapter": 1,
+      "status": "active",
+      "related_characters": [
+        "Protagonist",
+        "Museum Curator"
+      ]
+    }
+  ],
+  "unresolved_tensions": [
+    "Who is the stranger and why did they come here?",
+    "What happened to the museum's prized artifact?",
+    "Why did the stranger arrive during the storm?"
+  ],
+  "character_states": {},
+  "world_state_changes": {},
+  "protagonist_knowledge": [
+    {
+      "concept": "The stranger carries an ornate medallion",
+      "chapter_discovered": 1,
+      "confirmation_level": "confirmed",
+      "implications": [
+        "Medallion might be connected to missing artifact"
+      ]
+    }
+  ],
+  "established_facts": {},
+  "narrative_tone": "mysterious",
+  "pacing_state": "moderate"
+}

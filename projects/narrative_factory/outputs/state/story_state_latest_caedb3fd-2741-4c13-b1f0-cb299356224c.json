@@ -1,0 +1,46 @@
+{
+  "current_chapter": 2,
+  "story_id": "caedb3fd-2741-4c13-b1f0-cb299356224c",
+  "created_at": "2025-07-17T07:02:28.049502",
+  "last_updated": "2025-07-17T07:03:37.258274",
+  "active_plot_threads": [
+    {
+      "id": "9d2d1c3e-63b0-4dd7-a715-392d29690652",
+      "description": "Test thread",
+      "priority": 5,
+      "introduced_chapter": 2,
+      "last_updated_chapter": 2,
+      "status": "active",
+      "related_characters": []
+    },
+    {
+      "id": "85820e03-236f-4e20-bacb-a1a498fb4cfb",
+      "description": "Test plot thread",
+      "priority": 1,
+      "introduced_chapter": 2,
+      "last_updated_chapter": 2,
+      "status": "active",
+      "related_characters": []
+    }
+  ],
+  "unresolved_tensions": [],
+  "character_states": {},
+  "world_state_changes": {},
+  "protagonist_knowledge": [
+    {
+      "concept": "Test knowledge",
+      "chapter_discovered": 2,
+      "confirmation_level": "suspected",
+      "implications": []
+    },
+    {
+      "concept": "Test knowledge",
+      "chapter_discovered": 2,
+      "confirmation_level": "suspected",
+      "implications": []
+    }
+  ],
+  "established_facts": {},
+  "narrative_tone": "neutral",
+  "pacing_state": "moderate"
+}

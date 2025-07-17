@@ -1,0 +1,32 @@
+{
+  "9fec005b-07b6-42d0-9388-f60c3a3d1de9": {
+    "id": "9fec005b-07b6-42d0-9388-f60c3a3d1de9",
+    "description": "Ancient magic awakens in the forest",
+    "target": "next",
+    "priority": 8,
+    "created_at": "2025-07-17 07:40:32.384495",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
+  },
+  "ad95f7d7-cdd6-4f23-b450-885aab56905d": {
+    "id": "ad95f7d7-cdd6-4f23-b450-885aab56905d",
+    "description": "A mysterious stranger arrives with ancient knowledge",
+    "target": "next",
+    "priority": 7,
+    "created_at": "2025-07-17 07:41:02.941857",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
+  },
+  "520ce959-4433-4108-bd1a-461b7de63479": {
+    "id": "520ce959-4433-4108-bd1a-461b7de63479",
+    "description": "Test catalyst for integration",
+    "target": "next",
+    "priority": 7,
+    "created_at": "2025-07-17 07:54:06.856051",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
+  }
+}

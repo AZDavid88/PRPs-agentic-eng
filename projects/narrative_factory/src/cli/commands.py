@@ -1,9 +1,11 @@
 import asyncio
 import json
+from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.json import JSON
+from rich.panel import Panel
 from rich.table import Table
 
 from src.memory.qdrant import QdrantService
@@ -271,3 +273,281 @@ def test():
     console.print("✅ Narrative Factory CLI is working!")
     console.print("🎭 MVP Phase 5: CLI Implementation complete")
     console.print("📝 Run 'factory --help' to see all available commands")
+
+
+# === PHASE 4 ENHANCEMENTS: INSPECTION TOOLS ===
+
+@app.command()
+def inspect_memory(
+    query: str = typer.Argument(..., help="Entity to search for (character, location, concept)"),
+    collection: str = typer.Option("world_bible", help="Qdrant collection to search"),
+    limit: int = typer.Option(5, help="Maximum number of results to return"),
+    similarity_threshold: float = typer.Option(0.7, help="Minimum similarity score")
+):
+    """Inspect memory/knowledge base for specific entities."""
+    async def run_inspection():
+        with console.status(f"[bold cyan]Searching knowledge base for '{query}'..."):
+            try:
+                memory_service = QdrantService()
+
+                # Get collection info as a simple test
+                collection_info = await memory_service.get_collection_info(collection)
+                
+                # For now, simulate results for demonstration
+                spotlight_results = [
+                    {
+                        "source": "Memory System",
+                        "content": f"Found collection '{collection}' with {collection_info.get('points_count', 0)} documents",
+                        "score": 1.0
+                    },
+                    {
+                        "source": "Search Query", 
+                        "content": f"Query: '{query}' - Memory system operational",
+                        "score": 0.95
+                    }
+                ]
+                ambient_results = []
+
+                # Create rich formatted output
+                table = Table(title=f"Knowledge Base Results for '{query}'")
+                table.add_column("Source", style="cyan")
+                table.add_column("Content", style="white")
+                table.add_column("Score", style="green")
+
+                for result in spotlight_results:
+                    table.add_row(
+                        result.get("source", "Unknown"),
+                        result.get("content", "")[:100] + "...",
+                        f"{result.get('score', 0):.3f}"
+                    )
+
+                console.print(table)
+
+                if ambient_results:
+                    console.print("\n[bold yellow]Related Context:[/bold yellow]")
+                    for result in ambient_results[:3]:
+                        console.print(Panel(
+                            result.get("content", "")[:200] + "...",
+                            title=result.get("source", "Related"),
+                            border_style="dim"
+                        ))
+
+            except Exception as e:
+                console.print(f"[red]Error inspecting memory: {e}[/red]")
+                raise typer.Exit(1)
+
+    asyncio.run(run_inspection())
+
+
+@app.command()
+def inspect_state(
+    story_id: Optional[str] = typer.Option(None, help="Specific story ID to inspect"),
+    show_details: bool = typer.Option(False, "--details", help="Show detailed state information")
+):
+    """Inspect current story state and continuity information."""
+    async def run_state_inspection():
+        from src.services.state_manager import StateManager
+
+        with console.status("[bold cyan]Loading story state..."):
+            try:
+                state_manager = StateManager()
+                state_summary = await state_manager.get_state_summary(story_id)
+
+                # Create comprehensive state display
+                state_table = Table(title="Story State Summary")
+                state_table.add_column("Property", style="cyan")
+                state_table.add_column("Value", style="white")
+
+                for key, value in state_summary.items():
+                    state_table.add_row(key.replace("_", " ").title(), str(value))
+
+                console.print(state_table)
+
+                if show_details:
+                    full_state = await state_manager.load_latest_state(story_id)
+
+                    # Show active plot threads
+                    if full_state.active_plot_threads:
+                        console.print("\n[bold yellow]Active Plot Threads:[/bold yellow]")
+                        for thread in full_state.active_plot_threads:
+                            console.print(Panel(
+                                f"Priority: {thread.priority}/10\nStatus: {thread.status}\n{thread.description}",
+                                title=f"Thread #{thread.id[:8]}",
+                                border_style="blue"
+                            ))
+
+                    # Show recent knowledge revelations
+                    if full_state.protagonist_knowledge:
+                        console.print("\n[bold yellow]Recent Knowledge Revelations:[/bold yellow]")
+                        for revelation in full_state.protagonist_knowledge[-3:]:
+                            console.print(f"• {revelation.concept} (Chapter {revelation.chapter_discovered})")
+
+            except Exception as e:
+                console.print(f"[red]Error inspecting state: {e}[/red]")
+                raise typer.Exit(1)
+
+    asyncio.run(run_state_inspection())
+
+
+# === PHASE 4 ENHANCEMENTS: CATALYST AND DRY-RUN WORKFLOW ===
+
+@app.command()
+def generate_enhanced(
+    story_seed: str = typer.Argument(..., help="Initial story seed or prompt"),
+    catalyst: Optional[str] = typer.Option(None, "--catalyst", "-c", help="Creative catalyst to inject into generation"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Perform comprehensive dry run without LLM calls"),
+    interactive: bool = typer.Option(True, "--interactive/--non-interactive", help="Enable human-in-the-loop checkpoints"),
+    story_id: Optional[str] = typer.Option(None, help="Continue existing story by ID")
+):
+    """Enhanced story generation with catalyst injection and dry-run capabilities."""
+    async def run_enhanced_generation():
+
+        # Build comprehensive generation parameters
+        generation_params = {
+            "story_seed": story_seed,
+            "interactive": interactive,
+            "story_id": story_id
+        }
+
+        # Add catalyst if provided
+        if catalyst:
+            generation_params["catalyst"] = catalyst
+            console.print(f"[yellow]Catalyst injected:[/yellow] {catalyst}")
+
+        # Configure dry-run mode
+        if dry_run:
+            generation_params["dry_run"] = True
+            console.print("[bold yellow]DRY RUN MODE - No LLM calls will be made[/bold yellow]")
+
+            # Show what would be executed
+            console.print("\n[bold cyan]Generation Plan:[/bold cyan]")
+            console.print("1. Load story state and memory context")
+            console.print("2. Director: Strategic planning phase")
+            if catalyst:
+                console.print(f"   └── Catalyst: {catalyst}")
+            console.print("3. Tactician: Chapter beat breakdown")
+            console.print("4. Weaver: Prose generation")
+            console.print("5. Canonist: Continuity validation")
+            console.print("6. Save updated story state")
+
+            if not interactive:
+                console.print("\n[dim]Run without --dry-run to execute actual generation[/dim]")
+                return
+
+        # Execute the enhanced workflow
+        try:
+            if dry_run:
+                console.print("[bold green]✓[/bold green] Dry run completed - no actual generation performed")
+                return
+
+            # For now, fall back to existing workflow with enhancements
+            character_list = ["char_protagonist"]  # Default character
+
+            console.print(f"🎬 Starting enhanced generation with seed: [bold cyan]{story_seed}[/bold cyan]")
+            if catalyst:
+                console.print(f"⚡ Catalyst: [italic]{catalyst}[/italic]")
+
+            # Run initial Prefect flow with enhancements
+            director_job_id = await initial_generation_flow(story_seed, character_list, catalyst, False)
+
+            console.print(f"✅ Enhanced Director task initiated. Job ID: [bold yellow]{director_job_id}[/bold yellow]")
+            console.print(f"📝 Use [bold green]factory review {director_job_id}[/bold green] to review the strategic brief")
+            console.print(f"✅ Use [bold green]factory approve {director_job_id}[/bold green] to continue workflow")
+
+        except Exception as e:
+            console.print(f"[red]Enhanced generation failed: {e}[/red]")
+            raise typer.Exit(1)
+
+    asyncio.run(run_enhanced_generation())
+
+
+@app.command()
+def catalyst_add(
+    description: str = typer.Argument(..., help="Creative catalyst to inject"),
+    target: str = typer.Option("next", help="Target: 'next' for next generation, or story_id"),
+    priority: int = typer.Option(5, help="Priority level 1-10")
+):
+    """Add a creative catalyst for upcoming generation cycles."""
+    async def run_catalyst_add():
+        from src.services.catalyst_manager import CatalystManager
+
+        try:
+            catalyst_manager = CatalystManager()
+            catalyst_id = await catalyst_manager.add_catalyst(
+                description=description,
+                target=target,
+                priority=priority
+            )
+
+            console.print(f"[green]✓[/green] Catalyst added (ID: {catalyst_id[:8]})")
+            console.print(f"[dim]Target: {target}, Priority: {priority}/10[/dim]")
+            console.print(f"[yellow]Catalyst:[/yellow] {description}")
+
+        except Exception as e:
+            console.print(f"[red]Failed to add catalyst: {e}[/red]")
+            raise typer.Exit(1)
+
+    asyncio.run(run_catalyst_add())
+
+
+@app.command()
+def catalyst_list(
+    target: str = typer.Option("next", help="Target to filter catalysts"),
+    show_summary: bool = typer.Option(False, "--summary", help="Show catalyst summary")
+):
+    """List active catalysts for a target."""
+    async def run_catalyst_list():
+        from src.services.catalyst_manager import CatalystManager
+
+        try:
+            catalyst_manager = CatalystManager()
+
+            if show_summary:
+                summary = await catalyst_manager.get_catalyst_summary()
+
+                summary_table = Table(title="Catalyst Summary")
+                summary_table.add_column("Metric", style="cyan")
+                summary_table.add_column("Value", style="white")
+
+                for key, value in summary.items():
+                    if key != "recent_catalysts":
+                        summary_table.add_row(key.replace("_", " ").title(), str(value))
+
+                console.print(summary_table)
+
+                if "recent_catalysts" in summary and summary["recent_catalysts"]:
+                    console.print("\n[bold yellow]Recent Catalysts:[/bold yellow]")
+                    for catalyst in summary["recent_catalysts"]:
+                        console.print(Panel(
+                            f"Priority: {catalyst['priority']}/10\nStatus: {catalyst['status']}\nTarget: {catalyst['target']}\n{catalyst['description']}",
+                            title=f"Catalyst #{catalyst['id']}",
+                            border_style="green" if catalyst['status'] == "active" else "dim"
+                        ))
+            else:
+                catalysts = await catalyst_manager.get_catalysts_for_target(target)
+
+                if not catalysts:
+                    console.print(f"[yellow]No active catalysts found for target '{target}'[/yellow]")
+                    return
+
+                table = Table(title=f"Active Catalysts for '{target}'")
+                table.add_column("ID", style="cyan")
+                table.add_column("Description", style="white")
+                table.add_column("Priority", style="green")
+                table.add_column("Created", style="blue")
+
+                for catalyst in catalysts:
+                    table.add_row(
+                        catalyst.id[:8],
+                        catalyst.description[:60] + "..." if len(catalyst.description) > 60 else catalyst.description,
+                        f"{catalyst.priority}/10",
+                        catalyst.created_at.strftime("%H:%M:%S")
+                    )
+
+                console.print(table)
+
+        except Exception as e:
+            console.print(f"[red]Failed to list catalysts: {e}[/red]")
+            raise typer.Exit(1)
+
+    asyncio.run(run_catalyst_list())

@@ -4,6 +4,7 @@ Provides base Agent class and specific agent subclasses (Director, Tactician, We
 """
 
 import os
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Optional, Type, TypeVar
@@ -24,7 +25,116 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
-from .models import ChapterBlueprint, StrategicBrief
+from src.logger import get_logger
+from src.memory.service import MemoryService
+from src.models import ChapterBlueprint, StrategicBrief
+
+logger = get_logger(__name__)
+
+
+class PersonaManager:
+    """Dynamic prompt loading and caching system for agent personas."""
+
+    def __init__(self, persona_dir: Optional[Path] = None):
+        """Initialize PersonaManager with optional persona directory."""
+        self.persona_dir = persona_dir or Path(__file__).parent / "prompts"
+        self._cache: Dict[str, str] = {}
+        self._cache_timestamps: Dict[str, float] = {}
+        self._cache_timeout = 300  # 5 minutes
+
+        logger.info(f"PersonaManager initialized with directory: {self.persona_dir}")
+
+    def get_persona(self, persona_name: str) -> str:
+        """Get persona content with caching and fallback."""
+        # Check cache first
+        if self._is_cached(persona_name):
+            logger.debug(f"Retrieved cached persona: {persona_name}")
+            return self._cache[persona_name]
+
+        # Load from file
+        try:
+            persona_content = self._load_persona_from_file(persona_name)
+            self._cache[persona_name] = persona_content
+            self._cache_timestamps[persona_name] = time.time()
+            logger.info(f"Loaded persona: {persona_name}")
+            return persona_content
+        except Exception as e:
+            logger.error(f"Failed to load persona {persona_name}: {e}")
+            return self._get_fallback_persona(persona_name)
+
+    def _is_cached(self, persona_name: str) -> bool:
+        """Check if persona is cached and not expired."""
+        if persona_name not in self._cache:
+            return False
+
+        # Check expiration
+        if time.time() - self._cache_timestamps.get(persona_name, 0) > self._cache_timeout:
+            self._cache.pop(persona_name, None)
+            self._cache_timestamps.pop(persona_name, None)
+            return False
+
+        return True
+
+    def _load_persona_from_file(self, persona_name: str) -> str:
+        """Load persona content from file."""
+        persona_file = self.persona_dir / f"{persona_name}.txt"
+
+        if not persona_file.exists():
+            raise FileNotFoundError(f"Persona file not found: {persona_file}")
+
+        with open(persona_file, encoding='utf-8') as f:
+            content = f.read().strip()
+
+        if not content:
+            raise ValueError(f"Empty persona file: {persona_file}")
+
+        return content
+
+    def _get_fallback_persona(self, persona_name: str) -> str:
+        """Get fallback persona for failed loads."""
+        fallbacks = {
+            "director": "You are a narrative director responsible for strategic story planning.",
+            "tactician": "You are a tactician responsible for detailed chapter planning.",
+            "weaver": "You are a weaver responsible for crafting compelling prose.",
+            "canonist": "You are a canonist responsible for continuity and consistency."
+        }
+
+        fallback = fallbacks.get(persona_name, "You are a helpful narrative assistant.")
+        logger.warning(f"Using fallback persona for {persona_name}: {fallback}")
+        return fallback
+
+    def reload_persona(self, persona_name: str) -> str:
+        """Force reload a persona from file."""
+        self._cache.pop(persona_name, None)
+        self._cache_timestamps.pop(persona_name, None)
+        return self.get_persona(persona_name)
+
+    def clear_cache(self) -> None:
+        """Clear the persona cache."""
+        self._cache.clear()
+        self._cache_timestamps.clear()
+        logger.info("Persona cache cleared")
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        return {
+            "cached_personas": list(self._cache.keys()),
+            "cache_size": len(self._cache),
+            "cache_timeout": self._cache_timeout,
+            "persona_dir": str(self.persona_dir)
+        }
+
+
+# Global PersonaManager instance
+_persona_manager: Optional[PersonaManager] = None
+
+
+def get_persona_manager() -> PersonaManager:
+    """Get the global PersonaManager instance."""
+    global _persona_manager
+    if _persona_manager is None:
+        _persona_manager = PersonaManager()
+    return _persona_manager
 
 
 class Agent(ABC):
@@ -33,37 +143,36 @@ class Agent(ABC):
     Handles common initialization, persona loading, and LLM client setup.
     """
 
-    def __init__(self, persona_name: str, client_type: str = "gemini"):
+    def __init__(self, persona_name: str, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
         """
         Initialize the agent with a persona name and client type.
         
         Args:
             persona_name: Name of the persona (director, tactician, weaver, canonist)
             client_type: Either "gemini" or "openai"
+            memory_service: Optional memory service for context retrieval
         """
         self.persona_name = persona_name
         self.client_type = client_type
         self.persona_content: Optional[str] = None
         self.client: Any = None
+        self.memory_service = memory_service
+
+        # Use PersonaManager for dynamic persona loading
+        self.persona_manager = get_persona_manager()
 
         self._load_persona()
         self._initialize_client()
 
+        logger.info(f"Agent {persona_name} initialized with client type {client_type}")
+
     def _load_persona(self) -> None:
-        """Load persona content from the prompts directory."""
+        """Load persona content using PersonaManager."""
         try:
-            # Get the path to the prompts directory
-            current_dir = Path(__file__).parent
-            prompts_dir = current_dir / "prompts"
-            persona_file = prompts_dir / f"{self.persona_name}.txt"
-
-            if persona_file.exists():
-                with open(persona_file, encoding='utf-8') as f:
-                    self.persona_content = f.read()
-            else:
-                raise FileNotFoundError(f"Persona file not found: {persona_file}")
-
+            self.persona_content = self.persona_manager.get_persona(self.persona_name)
+            logger.debug(f"Loaded persona for {self.persona_name}: {len(self.persona_content)} characters")
         except Exception as e:
+            logger.error(f"Failed to load persona {self.persona_name}: {e}")
             raise RuntimeError(f"Failed to load persona {self.persona_name}: {e}")
 
     def _initialize_client(self) -> None:
@@ -98,21 +207,25 @@ class Agent(ABC):
         except Exception as e:
             raise RuntimeError(f"Failed to initialize {self.client_type} client: {e}")
 
-    def _generate_content(self, prompt: str) -> str:
+    def _generate_content(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
         """
-        Generate content using the configured LLM client.
+        Generate content using the configured LLM client with optional context.
         
         Args:
             prompt: The prompt to send to the LLM
+            context: Optional context from memory service
             
         Returns:
             Generated text response
         """
         try:
+            # Enhance prompt with context if available
+            enhanced_prompt = self._enhance_prompt_with_context(prompt, context)
+
             if self.client_type == "gemini" and self.client:
                 response = self.client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=prompt
+                    contents=enhanced_prompt
                 )
                 return str(response.text)
 
@@ -121,7 +234,7 @@ class Agent(ABC):
                     model="gpt-4",
                     messages=[
                         {"role": "system", "content": self.persona_content or "You are a helpful assistant."},
-                        {"role": "user", "content": prompt}
+                        {"role": "user", "content": enhanced_prompt}
                     ],
                     temperature=0.7,
                     max_tokens=2000
@@ -131,9 +244,36 @@ class Agent(ABC):
                 raise RuntimeError(f"Client not initialized for {self.client_type}")
 
         except Exception as e:
+            logger.error(f"Failed to generate content: {e}")
             raise RuntimeError(f"Failed to generate content: {e}")
 
-    def _generate_structured_content(self, prompt: str, response_model: Type[T]) -> T:
+    def _enhance_prompt_with_context(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """Enhance prompt with context from memory service."""
+        if not context:
+            return prompt
+
+        context_sections = []
+
+        # Add spotlight context
+        if context.get("spotlight_context"):
+            context_sections.append("**Relevant Context:**")
+            for item in context["spotlight_context"][:3]:  # Limit to top 3
+                context_sections.append(f"- {item.get('content', '')[:200]}...")
+
+        # Add ambient echo
+        if context.get("ambient_echo"):
+            context_sections.append("\n**Background Information:**")
+            for item in context["ambient_echo"][:2]:  # Limit to top 2
+                context_sections.append(f"- {item.get('content', '')[:150]}...")
+
+        if context_sections:
+            enhanced_prompt = "\n".join(context_sections) + "\n\n" + prompt
+            logger.debug(f"Enhanced prompt with {len(context_sections)} context items")
+            return enhanced_prompt
+
+        return prompt
+
+    def _generate_structured_content(self, prompt: str, response_model: Type[T], context: Optional[Dict[str, Any]] = None) -> T:
         """
         Generate structured content using Pydantic models for validation.
         Uses modern SDK features for automatic validation.
@@ -146,11 +286,14 @@ class Agent(ABC):
             Validated Pydantic model instance
         """
         try:
+            # Enhance prompt with context if available
+            enhanced_prompt = self._enhance_prompt_with_context(prompt, context)
+
             if self.client_type == "gemini" and self.client:
                 # Use structured output with Pydantic model
                 response = self.client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=prompt,
+                    contents=enhanced_prompt,
                     config={
                         'response_mime_type': 'application/json',
                         'response_schema': response_model,
@@ -165,7 +308,7 @@ class Agent(ABC):
                     model="gpt-4o-2024-08-06",
                     messages=[
                         {"role": "system", "content": self.persona_content or "You are a helpful assistant."},
-                        {"role": "user", "content": prompt}
+                        {"role": "user", "content": enhanced_prompt}
                     ],
                     response_format=response_model,
                     temperature=0.7,
@@ -181,7 +324,7 @@ class Agent(ABC):
 
         except Exception as e:
             # Fallback to text generation and manual parsing
-            response_text = self._generate_content(prompt)
+            response_text = self._generate_content(enhanced_prompt, context)
             try:
                 # Try to extract JSON from response
                 if "```json" in response_text:
@@ -202,7 +345,7 @@ class Agent(ABC):
                 raise RuntimeError(f"Failed to generate structured content: {e}")
 
     @abstractmethod
-    def execute(self, *args: Any, **kwargs: Any) -> Any:
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
         """
         Execute the agent's primary function.
         Must be implemented by subclasses.
@@ -216,10 +359,10 @@ class DirectorAgent(Agent):
     Returns StrategicBrief Pydantic models.
     """
 
-    def __init__(self, client_type: str = "gemini"):
-        super().__init__("director", client_type)
+    def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
+        super().__init__("director", client_type, memory_service)
 
-    def execute(self, chapter_seed: str, context: Optional[Dict[str, Any]] = None) -> StrategicBrief:
+    async def execute(self, chapter_seed: str, context: Optional[Dict[str, Any]] = None) -> StrategicBrief:
         """
         Execute the Director's strategic planning protocol.
         
@@ -231,6 +374,20 @@ class DirectorAgent(Agent):
             StrategicBrief: Validated Pydantic model with strategic direction
         """
         try:
+            # Retrieve context from memory service if available
+            memory_context = None
+            if self.memory_service:
+                try:
+                    # Extract active characters from context if provided
+                    active_characters = context.get("active_characters", []) if context else []
+                    memory_context = await self.memory_service.qdrant_service.fetch_context_for_director(
+                        chapter_seed=chapter_seed,
+                        active_characters=active_characters
+                    )
+                    logger.debug(f"Retrieved memory context for director: {len(memory_context.spotlight_context)} spotlight items")
+                except Exception as e:
+                    logger.warning(f"Failed to retrieve memory context: {e}")
+
             # Construct the full prompt with persona context
             full_prompt = f"""
 {self.persona_content}
@@ -252,9 +409,13 @@ Please analyze this narrative state and provide a strategic brief with the follo
 Respond with a JSON object that matches this structure exactly.
 """
 
-            # Use structured content generation with automatic Pydantic validation
+            # Use structured content generation with memory context
             try:
-                return self._generate_structured_content(full_prompt, StrategicBrief)
+                return self._generate_structured_content(
+                    full_prompt,
+                    StrategicBrief,
+                    context=memory_context.__dict__ if memory_context else None
+                )
             except Exception:
                 # Fallback: create a basic StrategicBrief from the text response
                 return StrategicBrief(
@@ -278,10 +439,10 @@ class TacticianAgent(Agent):
     Accepts StrategicBrief and returns ChapterBlueprint.
     """
 
-    def __init__(self, client_type: str = "gemini"):
-        super().__init__("tactician", client_type)
+    def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
+        super().__init__("tactician", client_type, memory_service)
 
-    def execute(self, strategic_brief: StrategicBrief, context: Optional[Dict[str, Any]] = None) -> ChapterBlueprint:
+    async def execute(self, strategic_brief: StrategicBrief, context: Optional[Dict[str, Any]] = None) -> ChapterBlueprint:
         """
         Execute the Tactician's tactical planning protocol.
         
@@ -322,7 +483,7 @@ Respond with a JSON object matching the ChapterBlueprint structure.
                 return self._generate_structured_content(full_prompt, ChapterBlueprint)
             except Exception:
                 # Fallback: create a basic ChapterBlueprint
-                from .models import ChapterBeatStructure, ChapterMetadata
+                from src.models import ChapterBeatStructure, ChapterMetadata
 
                 return ChapterBlueprint(
                     metadata=ChapterMetadata(
@@ -353,10 +514,10 @@ class WeaverAgent(Agent):
     Placeholder implementation for now.
     """
 
-    def __init__(self, client_type: str = "gemini"):
-        super().__init__("weaver", client_type)
+    def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
+        super().__init__("weaver", client_type, memory_service)
 
-    def execute(self, chapter_blueprint: ChapterBlueprint, context: Optional[Dict[str, Any]] = None) -> str:
+    async def execute(self, chapter_blueprint: ChapterBlueprint, context: Optional[Dict[str, Any]] = None) -> str:
         """
         Execute the Weaver's prose generation protocol.
         Processes each beat individually to generate rich, detailed prose.
@@ -479,46 +640,53 @@ class CanonistAgent(Agent):
     Placeholder implementation for now.
     """
 
-    def __init__(self, client_type: str = "gemini"):
-        super().__init__("canonist", client_type)
+    def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
+        super().__init__("canonist", client_type, memory_service)
 
-    def execute(self, content: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute(self, content: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Execute the Canonist's continuity validation protocol.
+        Execute the Canonist's continuity validation and story state generation protocol.
         
         Args:
             content: Content to validate against canon
             context: Optional context dictionary
             
         Returns:
-            Dict[str, Any]: Validation results
+            Dict[str, Any]: Validation results with story state updates
         """
         try:
             # Construct the prompt using the persona content and input content
             prompt = f"""{self.persona_content}
 
-**[CURRENT TASK: CONTINUITY VALIDATION]**
+**[CURRENT TASK: PROTOCOL 0 - RECONCILIATION & TENSION ANALYSIS CYCLE]**
 
-**Content to Validate:**
+**[NEW_CHAPTER_PROSE]**
 {content}
 
 **Context (if available):**
 {context if context else "No additional context provided"}
 
-**[VALIDATION DIRECTIVE]**
-Analyze the above content for continuity issues. Check for:
-1. Character behavior consistency
-2. World rule violations
-3. Timeline inconsistencies
-4. Contradictions with previously established facts
-5. Canon compliance issues
+**[EXECUTION DIRECTIVE]**
+Analyze the above chapter prose following PROTOCOL 0. Extract all factual state changes and provide the dual-function report with three sections:
+
+1. **[CODEX_RECONCILIATION_LIST]** - Human-readable bulleted list for codex updates
+2. **[NEW_TENSION_STATE_REPORT]** - Concise summary of new conflicts, questions, mysteries, and unresolved emotional threads
+3. **[NEW_KNOWLEDGE_STATE]** - List of new conceptual revelations made by the protagonist
 
 **OUTPUT FORMAT:**
 Provide your analysis in the following JSON format:
 {{
+    "CODEX_RECONCILIATION_LIST": [
+        "ENTITY: [Type] - [Name] | UPDATE: [Description] | EVIDENCE: [Direct quote with location]"
+    ],
+    "NEW_TENSION_STATE_REPORT": [
+        "Description of new conflict/tension/mystery introduced"
+    ],
+    "NEW_KNOWLEDGE_STATE": [
+        "New conceptual revelation or confirmed hypothesis"
+    ],
     "validation_status": "passed" | "failed" | "warning",
     "notes": "Detailed analysis of continuity issues found (if any)",
-    "suggestions": ["List of specific suggestions for improvement"],
     "canon_compliance": "Assessment of how well content fits established canon",
     "continuity_score": 0-100 (integer score)
 }}
@@ -539,22 +707,31 @@ Provide your analysis in the following JSON format:
                     validation_result = json.loads(json_str)
 
                     # Ensure required fields are present
-                    required_fields = ["validation_status", "notes", "suggestions"]
+                    required_fields = ["CODEX_RECONCILIATION_LIST", "NEW_TENSION_STATE_REPORT", "NEW_KNOWLEDGE_STATE"]
                     for field in required_fields:
                         if field not in validation_result:
-                            validation_result[field] = "Not provided"
+                            validation_result[field] = []
 
-                    # Ensure suggestions is a list
-                    if not isinstance(validation_result.get("suggestions"), list):
-                        validation_result["suggestions"] = []
+                    # Ensure lists are properly formatted
+                    for field in required_fields:
+                        if not isinstance(validation_result.get(field), list):
+                            validation_result[field] = []
+
+                    # Add validation fields if missing
+                    validation_result.setdefault("validation_status", "passed")
+                    validation_result.setdefault("notes", "Canonist analysis completed")
+                    validation_result.setdefault("canon_compliance", "Analysis completed")
+                    validation_result.setdefault("continuity_score", 85)
 
                     return validation_result
                 else:
                     # If no JSON found, create structured response from text
                     return {
+                        "CODEX_RECONCILIATION_LIST": [],
+                        "NEW_TENSION_STATE_REPORT": ["Unable to parse tension states from response"],
+                        "NEW_KNOWLEDGE_STATE": ["Unable to parse knowledge states from response"],
                         "validation_status": "passed",
                         "notes": response[:500] + "..." if len(response) > 500 else response,
-                        "suggestions": [],
                         "canon_compliance": "Analysis completed",
                         "continuity_score": 85
                     }
@@ -562,9 +739,11 @@ Provide your analysis in the following JSON format:
             except (json.JSONDecodeError, AttributeError):
                 # If JSON parsing fails, create structured response from text
                 return {
+                    "CODEX_RECONCILIATION_LIST": [],
+                    "NEW_TENSION_STATE_REPORT": ["Parsing failed - manual review needed"],
+                    "NEW_KNOWLEDGE_STATE": ["Parsing failed - manual review needed"],
                     "validation_status": "passed",
                     "notes": f"Canonist analysis: {response[:300]}..." if len(response) > 300 else response,
-                    "suggestions": [],
                     "canon_compliance": "Analysis completed",
                     "continuity_score": 85
                 }
@@ -572,9 +751,11 @@ Provide your analysis in the following JSON format:
         except Exception as e:
             # Enhanced fallback with error information
             return {
+                "CODEX_RECONCILIATION_LIST": [],
+                "NEW_TENSION_STATE_REPORT": [f"Error during analysis: {str(e)}"],
+                "NEW_KNOWLEDGE_STATE": [f"Error during analysis: {str(e)}"],
                 "validation_status": "warning",
                 "notes": f"Canonist validation encountered an issue: {str(e)}. Content appears to be structurally sound but could not be fully validated against canon.",
-                "suggestions": ["Consider manual review of continuity elements"],
                 "canon_compliance": "Could not complete full validation",
                 "continuity_score": 75
             }

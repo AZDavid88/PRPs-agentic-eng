@@ -6,7 +6,7 @@ from typing import Literal, Optional
 from dotenv import load_dotenv
 from upstash_redis import Redis
 
-from src.agents.models import JobState
+from src.models import JobState
 
 # Load environment variables from .env file
 load_dotenv()
