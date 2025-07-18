@@ -9,6 +9,7 @@ from src.logger import get_logger
 from src.models.story_state import StoryState
 from src.workflows.jobs import JobStore
 
+
 logger = get_logger(__name__)
 
 class StateManager:

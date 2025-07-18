@@ -11,6 +11,7 @@ from typing import Any, Optional, TypeVar
 
 from pydantic import BaseModel
 
+
 T = TypeVar('T', bound=BaseModel)
 
 try:
@@ -28,6 +29,7 @@ except ImportError:
 from src.logger import get_logger
 from src.memory.service import MemoryService
 from src.models import ChapterBlueprint, StrategicBrief
+
 
 logger = get_logger(__name__)
 

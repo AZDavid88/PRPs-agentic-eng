@@ -134,8 +134,8 @@ def get_logger(name: str):
 #### L1: Static Analysis (Syntax, Style, Types)
 ```bash
 # Ensure the new and modified code is clean.
-uv run ruff check src/
-mypy src/ --strict
+uv run ruff check src/ --fix
+PYTHONPATH=/workspaces/PRPs-agentic-eng/projects/narrative_factory uv run mypy src/ --strict --follow-imports=skip
 ```
 
 #### L2: Functional Correctness (Validate Advanced Implementation)

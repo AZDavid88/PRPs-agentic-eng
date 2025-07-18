@@ -17,6 +17,7 @@ from .story_state import (
     StoryState,
 )
 
+
 __all__ = [
     # Agent models
     "StrategicBrief",

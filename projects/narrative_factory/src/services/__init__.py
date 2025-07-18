@@ -9,6 +9,7 @@ Provides centralized access to all service components including:
 from .catalyst_manager import Catalyst, CatalystManager
 from .state_manager import StateManager
 
+
 __all__ = [
     "StateManager",
     "CatalystManager",

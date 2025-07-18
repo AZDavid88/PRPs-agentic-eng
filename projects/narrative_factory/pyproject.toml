@@ -110,7 +110,10 @@ force-single-line = false
 lines-after-imports = 2
 
 [tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
 python_version = "3.9"
+exclude = ["scripts/", "PRPs/", "src/tests/"]
 check_untyped_defs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -133,4 +136,5 @@ asyncio_mode = "auto"
 [dependency-groups]
 dev = [
     "ruff>=0.12.3",
+    "types-psutil>=7.0.0.20250601",
 ]

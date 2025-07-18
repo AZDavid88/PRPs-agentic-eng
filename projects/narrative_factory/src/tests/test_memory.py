@@ -3,51 +3,17 @@ Unit tests for memory pipeline components.
 Tests QdrantService, EmbeddingService, and two-tiered retrieval.
 """
 
-import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-# Add the src directory to the path so we can import from memory
-src_path = Path(__file__).parent.parent
-sys.path.insert(0, str(src_path))
-
-# Try different import approaches
-try:
-    from agents.models import ContextRetrievalResult
-    from memory.embedding_service import (
-        EmbeddingService,
-        JinaEmbeddingProvider,
-        LocalSentenceTransformersProvider,
-    )
-    from memory.qdrant import QdrantService
-except ImportError:
-    # Alternative import approach for testing
-    import importlib.util
-
-    # Import QdrantService
-    spec = importlib.util.spec_from_file_location("qdrant", src_path / "memory" / "qdrant.py")
-    qdrant_module = importlib.util.module_from_spec(spec)
-    sys.modules["qdrant"] = qdrant_module
-    spec.loader.exec_module(qdrant_module)
-    QdrantService = qdrant_module.QdrantService
-
-    # Import EmbeddingService
-    spec = importlib.util.spec_from_file_location("embedding_service", src_path / "memory" / "embedding_service.py")
-    embedding_module = importlib.util.module_from_spec(spec)
-    sys.modules["embedding_service"] = embedding_module
-    spec.loader.exec_module(embedding_module)
-    EmbeddingService = embedding_module.EmbeddingService
-    LocalSentenceTransformersProvider = embedding_module.LocalSentenceTransformersProvider
-    JinaEmbeddingProvider = embedding_module.JinaEmbeddingProvider
-
-    # Import ContextRetrievalResult
-    spec = importlib.util.spec_from_file_location("models", src_path / "agents" / "models.py")
-    models_module = importlib.util.module_from_spec(spec)
-    sys.modules["models"] = models_module
-    spec.loader.exec_module(models_module)
-    ContextRetrievalResult = models_module.ContextRetrievalResult
+from src.memory.embedding_service import (
+    EmbeddingService,
+    JinaEmbeddingProvider,
+    LocalSentenceTransformersProvider,
+)
+from src.memory.qdrant import QdrantService
+from src.models import ContextRetrievalResult
 
 
 class TestEmbeddingService:
@@ -55,22 +21,22 @@ class TestEmbeddingService:
 
     def test_local_provider_initialization(self):
         """Test that LocalSentenceTransformersProvider initializes correctly."""
-        with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+        with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
             provider = LocalSentenceTransformersProvider()
             assert provider.model_name == "all-MiniLM-L6-v2"
             assert provider.get_embedding_dimension() == 384
 
     def test_local_provider_initialization_without_sentence_transformers(self):
         """Test that LocalSentenceTransformersProvider fails without sentence-transformers."""
-        with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', False):
+        with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', False):
             with pytest.raises(ImportError, match="sentence-transformers is required"):
                 LocalSentenceTransformersProvider()
 
     @pytest.mark.asyncio
     async def test_local_provider_generate_embeddings(self):
         """Test embedding generation with mocked sentence-transformers."""
-        with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-            with patch('memory.embedding_service.SentenceTransformer') as mock_st:
+        with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+            with patch('src.memory.embedding_service.SentenceTransformer') as mock_st:
                 # Setup mock
                 mock_model = Mock()
                 mock_model.encode.return_value = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
@@ -86,8 +52,8 @@ class TestEmbeddingService:
 
     def test_jina_provider_initialization(self):
         """Test JinaEmbeddingProvider initialization."""
-        with patch('memory.embedding_service.HTTPX_AVAILABLE', True):
-            with patch('memory.embedding_service.TENACITY_AVAILABLE', True):
+        with patch('src.memory.embedding_service.HTTPX_AVAILABLE', True):
+            with patch('src.memory.embedding_service.TENACITY_AVAILABLE', True):
                 with patch.dict('os.environ', {'JINA_API_KEY': 'test_key'}):
                     provider = JinaEmbeddingProvider()
                     assert provider.api_key == 'test_key'
@@ -96,8 +62,8 @@ class TestEmbeddingService:
 
     def test_jina_provider_initialization_without_api_key(self):
         """Test JinaEmbeddingProvider fails without API key."""
-        with patch('memory.embedding_service.HTTPX_AVAILABLE', True):
-            with patch('memory.embedding_service.TENACITY_AVAILABLE', True):
+        with patch('src.memory.embedding_service.HTTPX_AVAILABLE', True):
+            with patch('src.memory.embedding_service.TENACITY_AVAILABLE', True):
                 with patch.dict('os.environ', {}, clear=True):
                     with pytest.raises(ValueError, match="JINA_API_KEY environment variable"):
                         JinaEmbeddingProvider()
@@ -105,8 +71,8 @@ class TestEmbeddingService:
     @pytest.mark.asyncio
     async def test_jina_provider_generate_embeddings(self):
         """Test Jina AI embedding generation with mocked HTTP client."""
-        with patch('memory.embedding_service.HTTPX_AVAILABLE', True):
-            with patch('memory.embedding_service.TENACITY_AVAILABLE', True):
+        with patch('src.memory.embedding_service.HTTPX_AVAILABLE', True):
+            with patch('src.memory.embedding_service.TENACITY_AVAILABLE', True):
                 with patch.dict('os.environ', {'JINA_API_KEY': 'test_key'}):
                     # Mock response
                     mock_response = Mock()
@@ -124,7 +90,7 @@ class TestEmbeddingService:
                     mock_client = AsyncMock()
                     mock_client.post.return_value = mock_response
 
-                    with patch('memory.embedding_service.httpx.AsyncClient', return_value=mock_client):
+                    with patch('src.memory.embedding_service.httpx.AsyncClient', return_value=mock_client):
                         provider = JinaEmbeddingProvider()
                         embeddings = await provider.generate_embeddings(["text1", "text2"])
 
@@ -134,7 +100,7 @@ class TestEmbeddingService:
 
     def test_embedding_service_initialization(self):
         """Test EmbeddingService initialization with different providers."""
-        with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+        with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
             # Test local provider
             service = EmbeddingService(provider="local")
             assert service.provider_name == "local"
@@ -143,8 +109,8 @@ class TestEmbeddingService:
     @pytest.mark.asyncio
     async def test_embedding_service_generate_single_embedding(self):
         """Test single embedding generation."""
-        with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-            with patch('memory.embedding_service.SentenceTransformer') as mock_st:
+        with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+            with patch('src.memory.embedding_service.SentenceTransformer') as mock_st:
                 mock_model = Mock()
                 mock_model.encode.return_value = [[0.1, 0.2, 0.3]]
                 mock_st.return_value = mock_model
@@ -160,9 +126,9 @@ class TestQdrantService:
 
     def test_qdrant_service_initialization(self):
         """Test QdrantService initialization."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.qdrant.AsyncQdrantClient') as mock_client:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.qdrant.AsyncQdrantClient') as mock_client:
                     service = QdrantService()
                     assert service.url == "http://localhost:6333"
                     assert service.embedding_dimension == 384
@@ -170,15 +136,15 @@ class TestQdrantService:
 
     def test_qdrant_service_initialization_without_qdrant(self):
         """Test QdrantService fails without qdrant-client."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', False):
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', False):
             with pytest.raises(ImportError, match="qdrant-client is required"):
                 QdrantService()
 
     @pytest.mark.asyncio
     async def test_create_collections(self):
         """Test collection creation."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
                 mock_client = AsyncMock()
                 mock_client.collection_exists = AsyncMock(return_value=False)
                 mock_client.create_collection = AsyncMock()
@@ -199,9 +165,9 @@ class TestQdrantService:
     @pytest.mark.asyncio
     async def test_embed_text(self):
         """Test text embedding generation."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.qdrant.SentenceTransformer') as mock_st:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.qdrant.SentenceTransformer') as mock_st:
                     mock_model = Mock()
                     mock_model.encode.return_value = Mock()
                     mock_model.encode.return_value.tolist.return_value = [0.1, 0.2, 0.3]
@@ -218,9 +184,9 @@ class TestQdrantService:
     @pytest.mark.asyncio
     async def test_ingest_document(self):
         """Test single document ingestion."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.qdrant.SentenceTransformer') as mock_st:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.qdrant.SentenceTransformer') as mock_st:
                     mock_model = Mock()
                     mock_model.encode.return_value = Mock()
                     mock_model.encode.return_value.tolist.return_value = [0.1, 0.2, 0.3]
@@ -253,9 +219,9 @@ class TestQdrantService:
     @pytest.mark.asyncio
     async def test_fetch_context_for_director(self):
         """Test two-tiered context retrieval."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.qdrant.SentenceTransformer') as mock_st:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.qdrant.SentenceTransformer') as mock_st:
                     mock_model = Mock()
                     mock_model.encode.return_value = Mock()
                     mock_model.encode.return_value.tolist.return_value = [0.1, 0.2, 0.3]
@@ -311,9 +277,9 @@ class TestQdrantService:
     @pytest.mark.asyncio
     async def test_search_by_content(self):
         """Test generic content search."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.qdrant.SentenceTransformer') as mock_st:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.qdrant.SentenceTransformer') as mock_st:
                     mock_model = Mock()
                     mock_model.encode.return_value = Mock()
                     mock_model.encode.return_value.tolist.return_value = [0.1, 0.2, 0.3]
@@ -356,11 +322,11 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_memory_pipeline_integration(self):
         """Test integration between embedding service and Qdrant service."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                    with patch('memory.qdrant.SentenceTransformer') as mock_st_qdrant:
-                        with patch('memory.embedding_service.SentenceTransformer') as mock_st_embedding:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                    with patch('src.memory.qdrant.SentenceTransformer') as mock_st_qdrant:
+                        with patch('src.memory.embedding_service.SentenceTransformer') as mock_st_embedding:
                             # Setup mocks
                             mock_model = Mock()
                             mock_model.encode.return_value = Mock()
@@ -402,9 +368,9 @@ class TestMemoryPipelineValidation:
     @pytest.mark.asyncio
     async def test_qdrant_service_error_handling(self):
         """Test QdrantService handles errors gracefully."""
-        with patch('memory.qdrant.QDRANT_AVAILABLE', True):
-            with patch('memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-                with patch('memory.qdrant.SentenceTransformer') as mock_st:
+        with patch('src.memory.qdrant.QDRANT_AVAILABLE', True):
+            with patch('src.memory.qdrant.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+                with patch('src.memory.qdrant.SentenceTransformer') as mock_st:
                     mock_model = Mock()
                     mock_model.encode.return_value = Mock()
                     mock_model.encode.return_value.tolist.return_value = [0.1, 0.2, 0.3]
@@ -430,8 +396,8 @@ class TestMemoryPipelineValidation:
     @pytest.mark.asyncio
     async def test_embedding_service_error_handling(self):
         """Test EmbeddingService handles errors gracefully."""
-        with patch('memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
-            with patch('memory.embedding_service.SentenceTransformer') as mock_st:
+        with patch('src.memory.embedding_service.SENTENCE_TRANSFORMERS_AVAILABLE', True):
+            with patch('src.memory.embedding_service.SentenceTransformer') as mock_st:
                 mock_model = Mock()
                 mock_model.encode.side_effect = Exception("Embedding error")
                 mock_st.return_value = mock_model

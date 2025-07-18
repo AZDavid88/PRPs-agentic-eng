@@ -1,12 +1,13 @@
 """Upstash Redis-based JobStore for stateful HITL workflows."""
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from dotenv import load_dotenv
 from upstash_redis import Redis
 
 from src.models import JobState
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,7 +20,7 @@ class JobStore:
         """Initialize Upstash Redis client from environment variables."""
         self.redis_client = Redis.from_env()
 
-    def create_job(self, agent: Literal["Director", "Tactician", "Weaver", "Canonist"], input_payload: dict) -> str:
+    def create_job(self, agent: Literal["Director", "Tactician", "Weaver", "Canonist"], input_payload: dict[str, Any]) -> str:
         """Create new job in Redis and return job_id.
 
         Args:
@@ -38,7 +39,7 @@ class JobStore:
         self.redis_client.set(f"job:{job.job_id}", job.model_dump_json())
         return job.job_id
 
-    def update_job_as_pending(self, job_id: str, output_payload: dict) -> None:
+    def update_job_as_pending(self, job_id: str, output_payload: dict[str, Any]) -> None:
         """Update job with output and set status to pending_approval.
 
         Args:
@@ -53,7 +54,7 @@ class JobStore:
             job.updated_at = datetime.now()
             self.redis_client.set(f"job:{job_id}", job.model_dump_json())
 
-    def approve_job(self, job_id: str) -> Optional[dict]:
+    def approve_job(self, job_id: str) -> Optional[dict[str, Any]]:
         """Approve job and return output payload.
 
         Args:
@@ -71,7 +72,7 @@ class JobStore:
             return job.output_payload
         return None
 
-    def reject_job(self, job_id: str, feedback: str = "") -> Optional[dict]:
+    def reject_job(self, job_id: str, feedback: str = "") -> Optional[dict[str, Any]]:
         """Reject job and return input payload for retry.
 
         Args:

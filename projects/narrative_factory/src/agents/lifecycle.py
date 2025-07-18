@@ -22,6 +22,7 @@ from src.exceptions import (
 from src.health import register_health_check
 from src.logger import LogContext, get_logger
 
+
 logger = get_logger(__name__)
 
 

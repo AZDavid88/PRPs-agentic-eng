@@ -9,6 +9,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
+
 try:
     import httpx
     HTTPX_AVAILABLE = True
@@ -37,6 +38,7 @@ def _check_sentence_transformers():
     return SENTENCE_TRANSFORMERS_AVAILABLE
 
 from pydantic import BaseModel
+
 
 logger = logging.getLogger(__name__)
 

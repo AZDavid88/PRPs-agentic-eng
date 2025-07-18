@@ -13,9 +13,10 @@ from typing import Any, Optional
 
 from pydantic import BaseModel
 
-from src.agents.models import ChapterBlueprint, StrategicBrief
 from src.exceptions import ValidationError as CustomValidationError
 from src.logger import get_logger
+from src.models import ChapterBlueprint, StrategicBrief
+
 
 logger = get_logger(__name__)
 

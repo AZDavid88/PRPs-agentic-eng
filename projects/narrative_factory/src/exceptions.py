@@ -22,6 +22,7 @@ from tenacity import (
 from src.config import config
 from src.logger import get_logger
 
+
 logger = get_logger(__name__)
 
 
@@ -481,5 +482,6 @@ def graceful_degradation(fallback_func: Callable, max_failures: int = 3):
 
 # Import logging to fix the reference in the retry decorator
 import logging
+
 
 logger.info("Exception handling system initialized")

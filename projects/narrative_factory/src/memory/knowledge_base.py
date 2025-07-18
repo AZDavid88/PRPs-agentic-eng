@@ -8,10 +8,11 @@ and lore searching capabilities with two-tier retrieval system.
 import asyncio
 from typing import Any, Optional
 
-from src.agents.models import ContextRetrievalResult
 from src.exceptions import BusinessLogicError
 from src.logger import get_logger
 from src.memory.service import MemoryService, get_memory_service
+from src.models import ContextRetrievalResult
+
 
 logger = get_logger(__name__)
 

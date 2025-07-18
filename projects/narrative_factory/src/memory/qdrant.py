@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -58,19 +59,16 @@ def _check_sentence_transformers():
 
 # Import ContextRetrievalResult - handle import issues for testing
 try:
-    from ..agents.models import ContextRetrievalResult
+    from src.models import ContextRetrievalResult
 except ImportError:
-    try:
-        from agents.models import ContextRetrievalResult
-    except ImportError:
-        # Fallback definition for testing
-        from typing import Any
+    # Fallback definition for testing
+    from typing import Any
 
-        from pydantic import BaseModel
+    from pydantic import BaseModel
 
-        class ContextRetrievalResult(BaseModel):
-            spotlight_context: list[dict[str, Any]]
-            ambient_echo: list[dict[str, Any]]
+    class ContextRetrievalResult(BaseModel):
+        spotlight_context: list[dict[str, Any]]
+        ambient_echo: list[dict[str, Any]]
 
 # Enhanced imports for production features
 from src.config import config
@@ -81,6 +79,7 @@ from src.exceptions import (
 )
 from src.health import register_health_check
 from src.logger import get_logger, log_execution_time
+
 
 logger = get_logger(__name__)
 

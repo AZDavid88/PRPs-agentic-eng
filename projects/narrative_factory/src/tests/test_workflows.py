@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.agents.models import ChapterBlueprint, ChapterMetadata, StrategicBrief
+from src.models import ChapterBlueprint, ChapterMetadata, StrategicBrief
 from src.workflows.generation import (
     continue_generation_flow,
     finalize_generation_flow,

@@ -4,25 +4,19 @@ Tests based on PRP_MVP_02_AGENT_CORE.md requirements.
 """
 
 import json
-import sys
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
-# Add the src directory to the path so we can import from narrative_factory
-src_path = Path(__file__).parent.parent
-sys.path.insert(0, str(src_path))
-
-from agents.models import ChapterBeatStructure, ChapterBlueprint, ChapterMetadata, StrategicBrief
-from agents.personas import CanonistAgent, DirectorAgent, TacticianAgent, WeaverAgent
+from src.agents.personas import CanonistAgent, DirectorAgent, TacticianAgent, WeaverAgent
+from src.models import ChapterBeatStructure, ChapterBlueprint, ChapterMetadata, StrategicBrief
 
 
 class TestDirectorAgent:
     """Test the DirectorAgent class and its Pydantic model outputs."""
 
-    @patch('agents.personas.GENAI_AVAILABLE', True)
-    @patch('agents.personas.genai')
+    @patch('src.agents.personas.GENAI_AVAILABLE', True)
+    @patch('src.agents.personas.genai')
     def test_director_agent_initialization(self, mock_genai):
         """Test that DirectorAgent initializes correctly."""
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
@@ -53,8 +47,8 @@ class TestDirectorAgent:
         mock_response.text = json.dumps(mock_brief_dict)
 
         # Mock the environment and client
-        with patch('agents.personas.GENAI_AVAILABLE', True):
-            with patch('agents.personas.genai') as mock_genai:
+        with patch('src.agents.personas.GENAI_AVAILABLE', True):
+            with patch('src.agents.personas.genai') as mock_genai:
                 with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
                     mock_client = Mock()
                     mock_client.models.generate_content.return_value = mock_response
@@ -93,7 +87,7 @@ class TestDirectorAgent:
         mock_client.chat.completions.create.return_value = mock_chat_response
 
         with patch.dict('os.environ', {'OPENAI_API_KEY': 'test_key'}):
-            with patch('agents.personas.OpenAI', return_value=mock_client):
+            with patch('src.agents.personas.OpenAI', return_value=mock_client):
                 agent = DirectorAgent(client_type="openai")
                 result = agent.execute("Test seed for OpenAI")
 
@@ -151,7 +145,7 @@ class TestTacticianAgent:
         mock_response.text = json.dumps(mock_blueprint_dict)
 
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
-            with patch('agents.personas.genai') as mock_genai:
+            with patch('src.agents.personas.genai') as mock_genai:
                 mock_client = Mock()
                 mock_client.models.generate_content.return_value = mock_response
                 mock_genai.Client.return_value = mock_client
@@ -177,7 +171,7 @@ class TestWeaverAgent:
     def test_weaver_agent_initialization(self):
         """Test that WeaverAgent initializes correctly."""
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
-            with patch('agents.personas.genai'):
+            with patch('src.agents.personas.genai'):
                 agent = WeaverAgent()
                 assert agent.persona_name == "weaver"
 
@@ -187,7 +181,7 @@ class TestWeaverAgent:
         mock_blueprint.metadata.chapter_goal = "Test goal"
 
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
-            with patch('agents.personas.genai'):
+            with patch('src.agents.personas.genai'):
                 agent = WeaverAgent()
                 result = agent.execute(mock_blueprint)
 
@@ -201,14 +195,14 @@ class TestCanonistAgent:
     def test_canonist_agent_initialization(self):
         """Test that CanonistAgent initializes correctly."""
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
-            with patch('agents.personas.genai'):
+            with patch('src.agents.personas.genai'):
                 agent = CanonistAgent()
                 assert agent.persona_name == "canonist"
 
     def test_canonist_agent_execution_placeholder(self):
         """Test the placeholder execute method."""
         with patch.dict('os.environ', {'GEMINI_API_KEY': 'test_key'}):
-            with patch('agents.personas.genai'):
+            with patch('src.agents.personas.genai'):
                 agent = CanonistAgent()
                 result = agent.execute("Test content")
 

@@ -4,10 +4,11 @@ Memory service abstraction for the Narrative Factory.
 Provides a high-level interface for memory operations with production-ready patterns.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from src.logger import get_logger
 from src.memory.qdrant import QdrantService
+
 
 logger = get_logger(__name__)
 
@@ -31,12 +32,12 @@ class MemoryService:
         await self.qdrant_service.close()
         logger.info("Memory service closed")
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'MemoryService':
         """Async context manager entry."""
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.close()
 

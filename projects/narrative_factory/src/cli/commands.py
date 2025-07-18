@@ -16,6 +16,7 @@ from src.workflows.generation import (
 )
 from src.workflows.jobs import JobStore
 
+
 # Create Typer app with help configuration
 app = typer.Typer(
     name="factory",
@@ -253,7 +254,7 @@ def test_connection():
                 try:
                     await qdrant_service.get_collection_info("world_bible")
                     return True
-                except:
+                except Exception:
                     return False
 
             if asyncio.run(test_qdrant()):
@@ -400,7 +401,9 @@ def generate_enhanced(
     story_id: Optional[str] = typer.Option(None, help="Continue existing story by ID")
 ):
     """Enhanced story generation with catalyst injection and dry-run capabilities."""
+    print("ENTERING generate_enhanced")
     async def run_enhanced_generation():
+        print("ENTERING run_enhanced_generation")
 
         # Build comprehensive generation parameters
         generation_params = {

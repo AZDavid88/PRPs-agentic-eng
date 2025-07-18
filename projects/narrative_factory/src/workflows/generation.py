@@ -10,6 +10,7 @@ from src.memory.qdrant import QdrantService
 from src.services.state_manager import StateManager
 from src.workflows.jobs import JobStore
 
+
 # Initialize services - lazy loading for testing
 job_store = JobStore()
 memory_service = None

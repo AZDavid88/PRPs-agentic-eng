@@ -1,10 +1,11 @@
 # In: src/narrative_factory/agents/models.py
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
 
 # MVP Simplified Models based on actual persona requirements
 
@@ -71,9 +72,9 @@ class JobState(BaseModel):
     job_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique job identifier")
     agent: Literal["Director", "Tactician", "Weaver", "Canonist"] = Field(description="Agent responsible")
     status: Literal["processing", "pending_approval", "approved", "rejected", "complete"] = Field(description="Current job status")
-    input_payload: dict = Field(description="Input data for the job")
-    output_payload: Optional[dict] = Field(None, description="Agent output data")
-    feedback_history: list[dict] = Field(default_factory=list, description="Human feedback iterations")
+    input_payload: dict[str, Any] = Field(description="Input data for the job")
+    output_payload: Optional[dict[str, Any]] = Field(None, description="Agent output data")
+    feedback_history: list[dict[str, Any]] = Field(default_factory=list, description="Human feedback iterations")
     created_at: datetime = Field(default_factory=datetime.now, description="Job creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.now, description="Last update timestamp")
 
@@ -86,11 +87,11 @@ class MemoryDocument(BaseModel):
     content: str = Field(description="Document text content")
     doc_type: Literal["character_sheet", "style_guide", "lore_document", "tension_report"] = Field(description="Document classification")
     present_characters: list[str] = Field(default_factory=list, description="Character IDs for spotlight filtering")
-    metadata: dict = Field(default_factory=dict, description="Additional document metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional document metadata")
 
 class ContextRetrievalResult(BaseModel):
     """
     Two-tiered context retrieval result from memory pipeline.
     """
-    spotlight_context: list[dict] = Field(description="High-relevance context for current POV/scene")
-    ambient_echo: list[dict] = Field(description="Background tension and unresolved conflicts")
+    spotlight_context: list[dict[str, Any]] = Field(description="High-relevance context for current POV/scene")
+    ambient_echo: list[dict[str, Any]] = Field(description="Background tension and unresolved conflicts")

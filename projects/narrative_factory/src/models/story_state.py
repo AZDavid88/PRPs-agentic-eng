@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -61,7 +61,7 @@ class StoryState(BaseModel):
         """Update the last_updated timestamp."""
         self.last_updated = datetime.now()
 
-    def add_plot_thread(self, description: str, priority: int = 1, characters: list[str] = None) -> str:
+    def add_plot_thread(self, description: str, priority: int = 1, characters: Optional[list[str]] = None) -> str:
         """Add a new plot thread and return its ID."""
         thread = PlotThread(
             description=description,
@@ -84,7 +84,7 @@ class StoryState(BaseModel):
                 return True
         return False
 
-    def add_knowledge_revelation(self, concept: str, confirmation_level: str = "suspected", implications: list[str] = None) -> None:
+    def add_knowledge_revelation(self, concept: str, confirmation_level: str = "suspected", implications: Optional[list[str]] = None) -> None:
         """Add a new knowledge revelation for the protagonist."""
         revelation = KnowledgeRevelation(
             concept=concept,
