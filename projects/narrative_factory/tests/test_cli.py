@@ -4,7 +4,7 @@ import pytest
 from typer.testing import CliRunner
 from unittest.mock import Mock, patch, AsyncMock
 from src.cli.commands import app
-from src.agents.models import JobState
+from src.models.agent_models import JobState
 from datetime import datetime
 
 runner = CliRunner()

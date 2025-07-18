@@ -7,7 +7,7 @@ import os
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 from pydantic import BaseModel
 
@@ -38,8 +38,8 @@ class PersonaManager:
     def __init__(self, persona_dir: Optional[Path] = None):
         """Initialize PersonaManager with optional persona directory."""
         self.persona_dir = persona_dir or Path(__file__).parent / "prompts"
-        self._cache: Dict[str, str] = {}
-        self._cache_timestamps: Dict[str, float] = {}
+        self._cache: dict[str, str] = {}
+        self._cache_timestamps: dict[str, float] = {}
         self._cache_timeout = 300  # 5 minutes
 
         logger.info(f"PersonaManager initialized with directory: {self.persona_dir}")
@@ -115,7 +115,7 @@ class PersonaManager:
         self._cache_timestamps.clear()
         logger.info("Persona cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cached_personas": list(self._cache.keys()),
@@ -146,7 +146,7 @@ class Agent(ABC):
     def __init__(self, persona_name: str, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
         """
         Initialize the agent with a persona name and client type.
-        
+
         Args:
             persona_name: Name of the persona (director, tactician, weaver, canonist)
             client_type: Either "gemini" or "openai"
@@ -207,14 +207,14 @@ class Agent(ABC):
         except Exception as e:
             raise RuntimeError(f"Failed to initialize {self.client_type} client: {e}")
 
-    def _generate_content(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _generate_content(self, prompt: str, context: Optional[dict[str, Any]] = None) -> str:
         """
         Generate content using the configured LLM client with optional context.
-        
+
         Args:
             prompt: The prompt to send to the LLM
             context: Optional context from memory service
-            
+
         Returns:
             Generated text response
         """
@@ -247,7 +247,7 @@ class Agent(ABC):
             logger.error(f"Failed to generate content: {e}")
             raise RuntimeError(f"Failed to generate content: {e}")
 
-    def _enhance_prompt_with_context(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _enhance_prompt_with_context(self, prompt: str, context: Optional[dict[str, Any]] = None) -> str:
         """Enhance prompt with context from memory service."""
         if not context:
             return prompt
@@ -273,15 +273,15 @@ class Agent(ABC):
 
         return prompt
 
-    def _generate_structured_content(self, prompt: str, response_model: Type[T], context: Optional[Dict[str, Any]] = None) -> T:
+    def _generate_structured_content(self, prompt: str, response_model: type[T], context: Optional[dict[str, Any]] = None) -> T:
         """
         Generate structured content using Pydantic models for validation.
         Uses modern SDK features for automatic validation.
-        
+
         Args:
             prompt: The prompt to send to the LLM
             response_model: Pydantic model class for response validation
-            
+
         Returns:
             Validated Pydantic model instance
         """
@@ -362,14 +362,14 @@ class DirectorAgent(Agent):
     def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
         super().__init__("director", client_type, memory_service)
 
-    async def execute(self, chapter_seed: str, context: Optional[Dict[str, Any]] = None) -> StrategicBrief:
+    async def execute(self, chapter_seed: str, context: Optional[dict[str, Any]] = None) -> StrategicBrief:
         """
         Execute the Director's strategic planning protocol.
-        
+
         Args:
             chapter_seed: Initial narrative seed or continuation point
             context: Optional context dictionary with additional information
-            
+
         Returns:
             StrategicBrief: Validated Pydantic model with strategic direction
         """
@@ -442,14 +442,14 @@ class TacticianAgent(Agent):
     def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
         super().__init__("tactician", client_type, memory_service)
 
-    async def execute(self, strategic_brief: StrategicBrief, context: Optional[Dict[str, Any]] = None) -> ChapterBlueprint:
+    async def execute(self, strategic_brief: StrategicBrief, context: Optional[dict[str, Any]] = None) -> ChapterBlueprint:
         """
         Execute the Tactician's tactical planning protocol.
-        
+
         Args:
             strategic_brief: StrategicBrief from Director
             context: Optional context dictionary
-            
+
         Returns:
             ChapterBlueprint: Validated Pydantic model with tactical chapter plan
         """
@@ -517,15 +517,15 @@ class WeaverAgent(Agent):
     def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
         super().__init__("weaver", client_type, memory_service)
 
-    async def execute(self, chapter_blueprint: ChapterBlueprint, context: Optional[Dict[str, Any]] = None) -> str:
+    async def execute(self, chapter_blueprint: ChapterBlueprint, context: Optional[dict[str, Any]] = None) -> str:
         """
         Execute the Weaver's prose generation protocol.
         Processes each beat individually to generate rich, detailed prose.
-        
+
         Args:
             chapter_blueprint: ChapterBlueprint from Tactician
             context: Optional context dictionary
-            
+
         Returns:
             str: Generated prose chapter
         """
@@ -560,16 +560,16 @@ The narrative unfolds as planned, with each carefully crafted beat building towa
 [Note: Weaver agent encountered an issue during prose generation: {str(e)}]
 [Generated content for {len(chapter_blueprint.beats)} beats focusing on: {chapter_blueprint.metadata.chapter_goal}]"""
 
-    def _generate_beat_prose(self, beat: Any, beat_number: int, chapter_blueprint: ChapterBlueprint, context: Optional[Dict[str, Any]] = None) -> str:
+    def _generate_beat_prose(self, beat: Any, beat_number: int, chapter_blueprint: ChapterBlueprint, context: Optional[dict[str, Any]] = None) -> str:
         """
         Generate prose for a single beat using the Weaver's persona.
-        
+
         Args:
             beat: ChapterBeatStructure with beat details
             beat_number: Current beat number (1-based)
             chapter_blueprint: Full chapter blueprint for context
             context: Optional additional context
-            
+
         Returns:
             str: Generated prose for this beat
         """
@@ -594,11 +594,11 @@ The narrative unfolds as planned, with each carefully crafted beat building towa
 **Previous Context:** {"This is the opening beat" if beat_number == 1 else "Building from previous beats"}
 
 **[EXECUTION DIRECTIVE]**
-Transform this single beat into compelling, publication-ready narrative prose. 
+Transform this single beat into compelling, publication-ready narrative prose.
 
 **PACING GUIDANCE:**
 - **Expansive:** Rich detail, sensory immersion, slower pacing (3-4 paragraphs)
-- **Moderate:** Balanced detail and action (2-3 paragraphs)  
+- **Moderate:** Balanced detail and action (2-3 paragraphs)
 - **Compressed:** Tight, focused action (1-2 paragraphs)
 - **Crescendo:** Building tension and intensity (2-3 paragraphs)
 - **Decrescendo:** Settling, reflective resolution (2-3 paragraphs)
@@ -643,14 +643,14 @@ class CanonistAgent(Agent):
     def __init__(self, client_type: str = "gemini", memory_service: Optional[MemoryService] = None):
         super().__init__("canonist", client_type, memory_service)
 
-    async def execute(self, content: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute(self, content: str, context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         """
         Execute the Canonist's continuity validation and story state generation protocol.
-        
+
         Args:
             content: Content to validate against canon
             context: Optional context dictionary
-            
+
         Returns:
             Dict[str, Any]: Validation results with story state updates
         """

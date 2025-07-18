@@ -7,7 +7,7 @@ and coordinated execution of narrative generation workflows.
 
 import asyncio
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from src.agents.lifecycle import (
     AgentContext,
@@ -36,7 +36,7 @@ class AgentOrchestrationService:
     def __init__(self, memory_service: Optional[MemoryService] = None):
         """
         Initialize the agent orchestration service.
-        
+
         Args:
             memory_service: Optional memory service instance
         """
@@ -45,7 +45,7 @@ class AgentOrchestrationService:
         self.persona_manager = get_persona_manager()
 
         # Track active agents by type
-        self._active_agents: Dict[str, List[str]] = {
+        self._active_agents: dict[str, list[str]] = {
             "director": [],
             "tactician": [],
             "weaver": [],
@@ -53,7 +53,7 @@ class AgentOrchestrationService:
         }
 
         # Session tracking
-        self._active_sessions: Dict[str, Dict[str, Any]] = {}
+        self._active_sessions: dict[str, dict[str, Any]] = {}
 
         logger.info("Agent orchestration service initialized")
 
@@ -66,13 +66,13 @@ class AgentOrchestrationService:
     ) -> str:
         """
         Initialize and register a new agent with lifecycle management.
-        
+
         Args:
             agent_type: Type of agent (director, tactician, weaver, canonist)
             agent_id: Optional custom agent ID
             client_type: LLM client type (gemini, openai)
             session_id: Optional session ID for tracking
-            
+
         Returns:
             Agent ID for reference
         """
@@ -134,19 +134,19 @@ class AgentOrchestrationService:
     async def execute_agent(
         self,
         agent_id: str,
-        request_data: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None,
+        request_data: dict[str, Any],
+        context: Optional[dict[str, Any]] = None,
         user_id: Optional[str] = None
     ) -> Any:
         """
         Execute an agent with proper lifecycle management and context tracking.
-        
+
         Args:
             agent_id: ID of the agent to execute
             request_data: Data to pass to the agent
             context: Optional context dictionary
             user_id: Optional user ID for tracking
-            
+
         Returns:
             Agent execution result
         """
@@ -207,19 +207,19 @@ class AgentOrchestrationService:
     async def execute_narrative_pipeline(
         self,
         chapter_seed: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         session_id: Optional[str] = None,
         user_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Execute the complete narrative generation pipeline with agent orchestration.
-        
+
         Args:
             chapter_seed: Initial narrative seed
             context: Optional context dictionary
             session_id: Optional session ID
             user_id: Optional user ID
-            
+
         Returns:
             Complete narrative generation result
         """
@@ -321,7 +321,7 @@ class AgentOrchestrationService:
     async def shutdown_agent(self, agent_id: str) -> None:
         """
         Gracefully shutdown an agent and clean up resources.
-        
+
         Args:
             agent_id: ID of the agent to shutdown
         """
@@ -349,7 +349,7 @@ class AgentOrchestrationService:
     async def shutdown_session(self, session_id: str) -> None:
         """
         Shutdown all agents in a session.
-        
+
         Args:
             session_id: ID of the session to shutdown
         """
@@ -374,7 +374,7 @@ class AgentOrchestrationService:
             logger.error(f"Failed to shutdown session {session_id}: {e}")
             raise
 
-    async def get_orchestration_status(self) -> Dict[str, Any]:
+    async def get_orchestration_status(self) -> dict[str, Any]:
         """Get comprehensive orchestration service status."""
         return {
             "active_agents": self._active_agents,

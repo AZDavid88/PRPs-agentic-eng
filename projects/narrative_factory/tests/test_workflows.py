@@ -16,7 +16,7 @@ from src.workflows.generation import (
     approve_job_and_continue,
     reject_job_with_feedback
 )
-from src.agents.models import JobState, StrategicBrief, ChapterBlueprint
+from src.models.agent_models import JobState, StrategicBrief, ChapterBlueprint
 
 
 class TestJobStore:

@@ -9,7 +9,7 @@ import asyncio
 import functools
 import time
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Optional
 
 from tenacity import (
     before_sleep_log,
@@ -55,7 +55,7 @@ class NarrativeFactoryError(Exception):
         message: str,
         category: ErrorCategory,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict[str, Any]] = None,
         recoverable: bool = True
     ):
         """Initialize error with structured information."""
@@ -67,7 +67,7 @@ class NarrativeFactoryError(Exception):
         self.recoverable = recoverable
         self.timestamp = time.time()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert error to dictionary for logging/serialization."""
         return {
             "error_message": self.message,
@@ -83,7 +83,7 @@ class NarrativeFactoryError(Exception):
 class ConfigurationError(NarrativeFactoryError):
     """Error in application configuration."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.CONFIGURATION,
@@ -96,7 +96,7 @@ class ConfigurationError(NarrativeFactoryError):
 class NetworkError(NarrativeFactoryError):
     """Network-related errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.NETWORK,
@@ -109,7 +109,7 @@ class NetworkError(NarrativeFactoryError):
 class DatabaseError(NarrativeFactoryError):
     """Database operation errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.DATABASE,
@@ -122,7 +122,7 @@ class DatabaseError(NarrativeFactoryError):
 class AIModelError(NarrativeFactoryError):
     """AI model operation errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.AI_MODEL,
@@ -135,7 +135,7 @@ class AIModelError(NarrativeFactoryError):
 class ValidationError(NarrativeFactoryError):
     """Data validation errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.VALIDATION,
@@ -148,7 +148,7 @@ class ValidationError(NarrativeFactoryError):
 class AuthenticationError(NarrativeFactoryError):
     """Authentication and authorization errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.AUTHENTICATION,
@@ -161,7 +161,7 @@ class AuthenticationError(NarrativeFactoryError):
 class RateLimitError(NarrativeFactoryError):
     """Rate limiting errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.RATE_LIMIT,
@@ -174,7 +174,7 @@ class RateLimitError(NarrativeFactoryError):
 class ResourceError(NarrativeFactoryError):
     """Resource availability errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.RESOURCE,
@@ -187,7 +187,7 @@ class ResourceError(NarrativeFactoryError):
 class BusinessLogicError(NarrativeFactoryError):
     """Business logic validation errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.BUSINESS_LOGIC,
@@ -200,7 +200,7 @@ class BusinessLogicError(NarrativeFactoryError):
 class SystemError(NarrativeFactoryError):
     """System-level errors."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(
             message=message,
             category=ErrorCategory.SYSTEM,
@@ -220,7 +220,7 @@ class RetryConfig:
         max_delay: float = 60.0,
         exponential_base: float = 2.0,
         jitter: bool = True,
-        retryable_exceptions: Optional[List[Type[Exception]]] = None
+        retryable_exceptions: Optional[list[type[Exception]]] = None
     ):
         self.max_attempts = max_attempts
         self.base_delay = base_delay
@@ -242,10 +242,10 @@ class ErrorHandler:
     def __init__(self, retry_config: Optional[RetryConfig] = None):
         """Initialize error handler with retry configuration."""
         self.retry_config = retry_config or RetryConfig()
-        self.error_counts: Dict[str, int] = {}
-        self.last_errors: Dict[str, float] = {}
+        self.error_counts: dict[str, int] = {}
+        self.last_errors: dict[str, float] = {}
 
-    def handle_error(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def handle_error(self, error: Exception, context: Optional[dict[str, Any]] = None) -> None:
         """Handle an error with logging and tracking."""
         context = context or {}
 
@@ -283,7 +283,7 @@ class ErrorHandler:
         else:
             return SystemError(error_message, details={"original_type": error_type})
 
-    def _log_error(self, error: NarrativeFactoryError, context: Dict[str, Any]) -> None:
+    def _log_error(self, error: NarrativeFactoryError, context: dict[str, Any]) -> None:
         """Log error with structured information."""
         log_data = error.to_dict()
         log_data.update(context)
@@ -316,7 +316,7 @@ class ErrorHandler:
                     extra={"error_count": self.error_counts[error_key]}
                 )
 
-    def get_error_stats(self) -> Dict[str, Any]:
+    def get_error_stats(self) -> dict[str, Any]:
         """Get error statistics for monitoring."""
         return {
             "error_counts": self.error_counts.copy(),
@@ -331,7 +331,7 @@ error_handler = ErrorHandler()
 
 def handle_errors(
     reraise: bool = True,
-    log_context: Optional[Dict[str, Any]] = None,
+    log_context: Optional[dict[str, Any]] = None,
     return_default: Any = None
 ):
     """Decorator for handling errors in functions."""
@@ -369,7 +369,7 @@ def with_retry(
     max_attempts: Optional[int] = None,
     base_delay: Optional[float] = None,
     max_delay: Optional[float] = None,
-    retryable_exceptions: Optional[List[Type[Exception]]] = None
+    retryable_exceptions: Optional[list[type[Exception]]] = None
 ):
     """Decorator for adding retry logic to functions."""
     retry_config = RetryConfig(

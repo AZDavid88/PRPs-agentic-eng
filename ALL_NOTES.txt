@@ -1,7 +1,7 @@
 # Claude commands to use:
 
 /prp-base-execute <PRP names in /narrative_factory/PRPs>
-/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_NF_PHASE_01_FOUNDATION.md
+/prp-base-execute /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_NF_PHASE_04_TOOLKIT.md
 
 
 Task: Execute PRP_MVP_01_SCAFFOLD with full context loading
@@ -508,6 +508,7 @@ designed to sit on top of.
 
 ---
 
+Claude, someone suggested to run these `validation gate` commands after implementing the above prps. Can you explain why that's necessary?
 # validation gate commands after finish implementing PRP_NF_PHASES
 
 PRP_NF_PHASE_01_FOUNDATION.md
@@ -517,9 +518,9 @@ ruff check src/
 mypy src/ --strict
  
 # Functional Correctness
-uv run python src/cli/main.py workflow generate --story-seed "Test validation" --dry-run
+uv run factory generate_enhanced --story-seed "Test validation" --dry-run
 uv run python -c "from src.memory.service import QdrantService; print('Memory service imports successfully')"
-uv run python -c "from src.agents.director import DirectorAgent; print('Director agent imports successfully')"
+uv run python -c "from src.agents.personas import DirectorAgent; print('Director agent imports successfully')"
 uv run python -c "from src.config import models, qdrant, app; print('Config system operational')"
 uv run pytest tests/ -v --tb=short
 
@@ -530,10 +531,10 @@ mypy src/narrative_factory/ --strict
  
 # Functional Correctness
 uv run python -c "
-from src.agents.director import DirectorAgent
-from src.agents.tactician import TacticianAgent
-from src.agents.weaver import WeaverAgent
-from src.agents.canonist import CanonicistAgent
+from src.agents.personas import DirectorAgent
+from src.agents.personas import TacticianAgent
+from src.agents.personas import WeaverAgent
+from src.agents.personas import CanonistAgent
 from src.memory.service import QdrantService
  
 # Test agent instantiation with persona loading
@@ -541,16 +542,16 @@ memory_service = QdrantService()
 director = DirectorAgent(memory_service=memory_service)
 tactician = TacticianAgent(memory_service=memory_service)
 weaver = WeaverAgent(memory_service=memory_service)
-canonist = CanonicistAgent(memory_service=memory_service)
+canonist = CanonistAgent(memory_service=memory_service)
 
 print('All advanced agents instantiated successfully')
 print(f'Director persona loaded: {len(director.persona) > 100}')
-print(f'Memory service operational: {memory_service is not sNone}')"
+print(f'Memory service operational: {memory_service is not None}')"
 uv run python -c "
 from src.workflows.generation import narrative_generation_workflow
 print('Workflow system imports successfully')"
 uv run pytest tests/test_agents.py -v --tb=short
-uv run python src/cli/main.py workflow generate --story-seed "Integration test" --dry-run --interactive=false
+uv run factory generate_enhanced --story-seed "Integration test" --dry-run --non-interactive
 
 PRP_NF_PHASE_03_CONTINUITY.md
 
@@ -641,7 +642,7 @@ def test_canonist_integration():
  
 test_canonist_integration()
 "
-uv run python src/cli/main.py workflow generate --story-seed "Continuity test" --dry-run --interactive=false
+uv run factory generate_enhanced --story-seed "Continuity test" --dry-run --non-interactive
 
 PRP_NF_PHASE_04_TOOLKIT.md
 
@@ -650,14 +651,15 @@ ruff check src/
 mypy src/ --strict
  
 # Functional Correctness
-uv run python src/cli/main.py inspect memory "Elara" --limit 3
-uv run python src/cli/main.py inspect memory "ancient prophecy" --collection world_bible
-uv run python src/cli/main.py inspect state --details
-uv run python src/cli/main.py workflow generate "A storm approaches" --catalyst "Ancient magic awakens" --dry-run
-uv run python src/cli/main.py workflow catalyst "A mysterious stranger arrives" --priority 8
-uv run python src/cli/main.py workflow generate "The hero's journey begins" --dry-run --interactive=false
-uv run python src/cli/main.py workflow generate "Integration test" --dry-run
+uv run factory inspect_memory "Elara" --limit 3
+uv run factory inspect_memory "ancient prophecy" --collection world_bible
+uv run factory inspect_state --details
+uv run factory generate_enhanced "A storm approaches" --catalyst "Ancient magic awakens" --dry-run
+uv run factory catalyst_add "A mysterious stranger arrives" --priority 8
+uv run factory generate_enhanced "The hero's journey begins" --dry-run --non-interactive
+uv run factory generate_enhanced "Integration test" --dry-run
 uv run pytest tests/test_cli_enhancements.py -v
-uv run python src/cli/main.py inspect --help
-uv run python src/cli/main.py workflow generate --help
+uv run factory inspect_memory --help
+uv run factory generate_enhanced --help
+
 

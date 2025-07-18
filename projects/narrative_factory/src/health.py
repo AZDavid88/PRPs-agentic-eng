@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from src.config import config
 from src.exceptions import (
@@ -37,14 +37,14 @@ class HealthCheck:
     message: str
     duration_ms: float
     timestamp: datetime
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[dict[str, Any]] = None
 
 
 @dataclass
 class SystemHealth:
     """Overall system health status."""
     status: HealthStatus
-    checks: List[HealthCheck]
+    checks: list[HealthCheck]
     timestamp: datetime
     uptime_seconds: float
     version: str = "0.1.0"
@@ -56,9 +56,9 @@ class HealthMonitor:
     def __init__(self):
         """Initialize health monitor."""
         self.start_time = time.time()
-        self.check_registry: Dict[str, Callable] = {}
+        self.check_registry: dict[str, Callable] = {}
         self.last_health_check: Optional[SystemHealth] = None
-        self.health_history: List[SystemHealth] = []
+        self.health_history: list[SystemHealth] = []
         self.max_history = 100
 
         # Register built-in health checks
@@ -130,7 +130,7 @@ class HealthMonitor:
         logger.info(f"Health check completed: {overall_status.value}")
         return system_health
 
-    async def _run_check(self, check_func: Callable, name: str, include_detailed: bool) -> Dict[str, Any]:
+    async def _run_check(self, check_func: Callable, name: str, include_detailed: bool) -> dict[str, Any]:
         """Run a single health check with timeout."""
         try:
             if asyncio.iscoroutinefunction(check_func):
@@ -149,7 +149,7 @@ class HealthMonitor:
                 "details": {"timeout_seconds": config.app.request_timeout}
             }
 
-    def _determine_overall_status(self, checks: List[HealthCheck]) -> HealthStatus:
+    def _determine_overall_status(self, checks: list[HealthCheck]) -> HealthStatus:
         """Determine overall system health from individual checks."""
         if not checks:
             return HealthStatus.UNKNOWN
@@ -164,7 +164,7 @@ class HealthMonitor:
         else:
             return HealthStatus.HEALTHY
 
-    async def _check_configuration(self, include_detailed: bool = False) -> Dict[str, Any]:
+    async def _check_configuration(self, include_detailed: bool = False) -> dict[str, Any]:
         """Check configuration validity."""
         try:
             issues = config.validate_all()
@@ -188,7 +188,7 @@ class HealthMonitor:
                 "details": {"error": str(e)} if include_detailed else None
             }
 
-    async def _check_database(self, include_detailed: bool = False) -> Dict[str, Any]:
+    async def _check_database(self, include_detailed: bool = False) -> dict[str, Any]:
         """Check database connectivity and health."""
         try:
             from qdrant_client import QdrantClient
@@ -230,7 +230,7 @@ class HealthMonitor:
                 "details": {"error": str(e)} if include_detailed else None
             }
 
-    async def _check_ai_models(self, include_detailed: bool = False) -> Dict[str, Any]:
+    async def _check_ai_models(self, include_detailed: bool = False) -> dict[str, Any]:
         """Check AI model availability and configuration."""
         try:
             issues = []
@@ -275,7 +275,7 @@ class HealthMonitor:
                 "details": {"error": str(e)} if include_detailed else None
             }
 
-    async def _check_file_system(self, include_detailed: bool = False) -> Dict[str, Any]:
+    async def _check_file_system(self, include_detailed: bool = False) -> dict[str, Any]:
         """Check file system accessibility."""
         try:
             from src.config import (
@@ -330,7 +330,7 @@ class HealthMonitor:
                 "details": {"error": str(e)} if include_detailed else None
             }
 
-    async def _check_memory(self, include_detailed: bool = False) -> Dict[str, Any]:
+    async def _check_memory(self, include_detailed: bool = False) -> dict[str, Any]:
         """Check memory usage and availability."""
         try:
             import psutil
@@ -393,7 +393,7 @@ class HealthMonitor:
                 "details": {"error": str(e)} if include_detailed else None
             }
 
-    async def _check_error_rates(self, include_detailed: bool = False) -> Dict[str, Any]:
+    async def _check_error_rates(self, include_detailed: bool = False) -> dict[str, Any]:
         """Check error rates and patterns."""
         try:
             error_stats = error_handler.get_error_stats()
@@ -427,7 +427,7 @@ class HealthMonitor:
                 "details": {"error": str(e)} if include_detailed else None
             }
 
-    def get_health_summary(self) -> Dict[str, Any]:
+    def get_health_summary(self) -> dict[str, Any]:
         """Get summary of recent health checks."""
         if not self.last_health_check:
             return {"status": "no_checks_performed"}
@@ -448,7 +448,7 @@ class HealthMonitor:
             ]
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert health monitor state to dictionary."""
         return {
             "start_time": self.start_time,
@@ -468,7 +468,7 @@ async def get_health_status(include_detailed: bool = False) -> SystemHealth:
     return await health_monitor.perform_health_check(include_detailed)
 
 
-def get_health_summary() -> Dict[str, Any]:
+def get_health_summary() -> dict[str, Any]:
     """Get health summary for monitoring."""
     return health_monitor.get_health_summary()
 

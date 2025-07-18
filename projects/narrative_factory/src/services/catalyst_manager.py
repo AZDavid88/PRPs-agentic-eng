@@ -1,7 +1,7 @@
 """
 Catalyst Manager for creative injection into narrative generation workflows.
 
-Provides persistent storage and management of creative catalysts that can be 
+Provides persistent storage and management of creative catalysts that can be
 injected into story generation to influence direction and creativity.
 """
 
@@ -9,7 +9,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -30,7 +30,7 @@ class Catalyst(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     used_at: Optional[datetime] = Field(default=None, description="When this catalyst was used")
     status: str = Field(default="active", description="Status: active, used, expired")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class CatalystManager:
@@ -46,7 +46,7 @@ class CatalystManager:
         description: str,
         target: str = "next",
         priority: int = 5,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[dict[str, Any]] = None
     ) -> str:
         """Add a new catalyst to the system."""
         catalyst = Catalyst(
@@ -85,7 +85,7 @@ class CatalystManager:
             logger.error(f"Failed to add catalyst: {e}")
             raise
 
-    async def get_catalysts_for_target(self, target: str = "next") -> List[Catalyst]:
+    async def get_catalysts_for_target(self, target: str = "next") -> list[Catalyst]:
         """Get active catalysts for a specific target, sorted by priority."""
         try:
             catalysts = await self._load_catalysts()
@@ -134,7 +134,7 @@ class CatalystManager:
             logger.error(f"Failed to mark catalyst as used: {e}")
             return False
 
-    async def get_catalyst_summary(self) -> Dict[str, Any]:
+    async def get_catalyst_summary(self) -> dict[str, Any]:
         """Get a summary of all catalysts in the system."""
         try:
             catalysts = await self._load_catalysts()
@@ -168,7 +168,7 @@ class CatalystManager:
             logger.error(f"Failed to get catalyst summary: {e}")
             return {"error": str(e)}
 
-    async def _load_catalysts(self) -> Dict[str, Catalyst]:
+    async def _load_catalysts(self) -> dict[str, Catalyst]:
         """Load catalysts from storage."""
         try:
             if self.catalyst_file.exists():
@@ -188,7 +188,7 @@ class CatalystManager:
             logger.error(f"Failed to load catalysts: {e}")
             return {}
 
-    async def _save_catalysts(self, catalysts: Dict[str, Catalyst]) -> None:
+    async def _save_catalysts(self, catalysts: dict[str, Catalyst]) -> None:
         """Save catalysts to storage."""
         try:
             # Convert to serializable format

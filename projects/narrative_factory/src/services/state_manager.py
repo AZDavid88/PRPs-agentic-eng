@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from src.config import STATE_DIR
 from src.logger import get_logger
@@ -93,7 +93,7 @@ class StateManager:
             logger.error(f"Failed to load state: {e}. Initializing new state.")
             return StoryState()
 
-    async def get_state_summary(self, story_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_state_summary(self, story_id: Optional[str] = None) -> dict[str, Any]:
         """Get a summary of the current story state for workflow coordination."""
         state = await self.load_latest_state(story_id)
 
@@ -109,7 +109,7 @@ class StateManager:
             "pacing_state": state.pacing_state
         }
 
-    def create_state_from_canonist_output(self, canonist_report: Dict[str, Any], previous_state: StoryState) -> StoryState:
+    def create_state_from_canonist_output(self, canonist_report: dict[str, Any], previous_state: StoryState) -> StoryState:
         """Convert Canonist reconciliation output into updated StoryState."""
         # This method bridges the existing Canonist output with the new StoryState model
         new_state = previous_state.model_copy(deep=True)

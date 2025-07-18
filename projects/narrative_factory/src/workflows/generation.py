@@ -10,10 +10,17 @@ from src.memory.qdrant import QdrantService
 from src.services.state_manager import StateManager
 from src.workflows.jobs import JobStore
 
-# Initialize services
+# Initialize services - lazy loading for testing
 job_store = JobStore()
-memory_service = QdrantService()
+memory_service = None
 state_manager = StateManager()
+
+def _get_memory_service():
+    """Lazy initialization of memory service for testing compatibility."""
+    global memory_service
+    if memory_service is None:
+        memory_service = QdrantService()
+    return memory_service
 
 
 @task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=2))
@@ -62,7 +69,7 @@ async def director_task(chapter_seed: str, active_characters: Optional[list[str]
             return job_id
 
         # Get context from memory service
-        context = await memory_service.fetch_context_for_director(chapter_seed, active_characters)
+        context = await _get_memory_service().fetch_context_for_director(chapter_seed, active_characters)
 
         # Enhance context with catalyst if provided
         if catalyst:

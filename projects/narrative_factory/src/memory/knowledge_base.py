@@ -6,7 +6,7 @@ and lore searching capabilities with two-tier retrieval system.
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from src.agents.models import ContextRetrievalResult
 from src.exceptions import BusinessLogicError
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 class KnowledgeBaseService:
     """
     Advanced knowledge base service with two-tier retrieval system.
-    
+
     Provides:
     - Spotlight Query: High-relevance context filtered by active elements
     - Ambient Echo: Background information and unresolved tensions
@@ -30,7 +30,7 @@ class KnowledgeBaseService:
     def __init__(self, memory_service: Optional[MemoryService] = None):
         """
         Initialize the knowledge base service.
-        
+
         Args:
             memory_service: Optional memory service instance
         """
@@ -38,19 +38,19 @@ class KnowledgeBaseService:
         self.qdrant_service = self.memory_service.qdrant_service
 
         # Cache for frequently accessed data
-        self._character_cache: Dict[str, Dict[str, Any]] = {}
-        self._lore_cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._character_cache: dict[str, dict[str, Any]] = {}
+        self._lore_cache: dict[str, list[dict[str, Any]]] = {}
         self._cache_ttl = 300  # 5 minutes
 
         logger.info("Knowledge base service initialized")
 
-    async def get_character_profile(self, character_id: str) -> Dict[str, Any]:
+    async def get_character_profile(self, character_id: str) -> dict[str, Any]:
         """
         Get comprehensive character profile from knowledge base.
-        
+
         Args:
             character_id: Character identifier
-            
+
         Returns:
             Character profile dictionary
         """
@@ -112,14 +112,14 @@ class KnowledgeBaseService:
             logger.error(f"Failed to get character profile for {character_id}: {e}")
             raise BusinessLogicError(f"Failed to get character profile: {e}") from e
 
-    async def search_lore(self, topic: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    async def search_lore(self, topic: str, max_results: int = 10) -> list[dict[str, Any]]:
         """
         Search for lore related to a specific topic.
-        
+
         Args:
             topic: Topic to search for
             max_results: Maximum number of results to return
-            
+
         Returns:
             List of lore entries
         """
@@ -165,19 +165,19 @@ class KnowledgeBaseService:
     async def get_enhanced_context_for_director(
         self,
         chapter_seed: str,
-        active_characters: List[str],
-        story_context: Optional[Dict[str, Any]] = None,
+        active_characters: list[str],
+        story_context: Optional[dict[str, Any]] = None,
         max_results_per_tier: int = 5
     ) -> ContextRetrievalResult:
         """
         Enhanced two-tier context retrieval for Director agent with character profiles.
-        
+
         Args:
             chapter_seed: Narrative seed for context
             active_characters: List of active character IDs
             story_context: Optional story context information
             max_results_per_tier: Maximum results per tier
-            
+
         Returns:
             Enhanced context retrieval result
         """
@@ -244,10 +244,10 @@ class KnowledgeBaseService:
             logger.error(f"Failed to get enhanced context for director: {e}")
             raise BusinessLogicError(f"Failed to get enhanced context: {e}") from e
 
-    async def get_prose_style_guide(self) -> Dict[str, Any]:
+    async def get_prose_style_guide(self) -> dict[str, Any]:
         """
         Get the prose style guide from the knowledge base.
-        
+
         Returns:
             Prose style guide dictionary
         """
@@ -304,10 +304,10 @@ class KnowledgeBaseService:
             logger.error(f"Failed to get prose style guide: {e}")
             raise BusinessLogicError(f"Failed to get prose style guide: {e}") from e
 
-    async def get_world_state_summary(self) -> Dict[str, Any]:
+    async def get_world_state_summary(self) -> dict[str, Any]:
         """
         Get a comprehensive summary of the current world state.
-        
+
         Returns:
             World state summary dictionary
         """
@@ -373,16 +373,16 @@ class KnowledgeBaseService:
         self,
         content: str,
         doc_type: str,
-        metadata: Dict[str, Any]
+        metadata: dict[str, Any]
     ) -> str:
         """
         Store narrative memory in the knowledge base.
-        
+
         Args:
             content: Content to store
             doc_type: Type of document
             metadata: Additional metadata
-            
+
         Returns:
             Document ID
         """
@@ -421,7 +421,7 @@ class KnowledgeBaseService:
         self._lore_cache.clear()
         logger.info("Knowledge base cache cleared")
 
-    async def get_service_stats(self) -> Dict[str, Any]:
+    async def get_service_stats(self) -> dict[str, Any]:
         """Get comprehensive service statistics."""
         return {
             "cached_characters": len(self._character_cache),

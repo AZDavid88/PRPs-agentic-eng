@@ -8,7 +8,7 @@ for validation, environment management, and production-ready configuration handl
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from pydantic import Field, model_validator, validator
@@ -176,7 +176,7 @@ class QdrantSettings(BaseSettings):
     )
 
     @property
-    def collection_mappings(self) -> Dict[str, str]:
+    def collection_mappings(self) -> dict[str, str]:
         """Dynamic collection mappings."""
         return {
             "character_sheets": self.world_bible_collection,
@@ -269,7 +269,7 @@ class AppSettings(BaseSettings):
     )
 
     @model_validator(mode='before')
-    def validate_environment_settings(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_environment_settings(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Validate environment-specific settings."""
         env = values.get('environment')
 
@@ -314,7 +314,7 @@ class ConfigManager:
         self.app = AppSettings()
         self._validated = False
 
-    def validate_all(self) -> List[str]:
+    def validate_all(self) -> list[str]:
         """Validate all configuration settings and return any issues."""
         issues = []
 
@@ -346,7 +346,7 @@ class ConfigManager:
         self._validated = len(issues) == 0
         return issues
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get comprehensive health status of configuration."""
         return {
             "validated": self._validated,

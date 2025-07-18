@@ -9,7 +9,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -59,7 +59,7 @@ class MessageMetadata:
 class AgentMessage(BaseModel):
     """Base class for agent-to-agent communication."""
     message_type: MessageType
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     metadata: MessageMetadata
 
     class Config:
@@ -114,9 +114,9 @@ class ProseContentMessage(AgentMessage):
 class ValidationResultMessage(AgentMessage):
     """Message containing validation result from Canonist."""
     message_type: MessageType = MessageType.VALIDATION_RESULT
-    validation_result: Dict[str, Any]
+    validation_result: dict[str, Any]
 
-    def __init__(self, validation_result: Dict[str, Any], metadata: MessageMetadata, **kwargs):
+    def __init__(self, validation_result: dict[str, Any], metadata: MessageMetadata, **kwargs):
         super().__init__(
             message_type=MessageType.VALIDATION_RESULT,
             payload={"validation_result": validation_result},
@@ -131,9 +131,9 @@ class ErrorReportMessage(AgentMessage):
     message_type: MessageType = MessageType.ERROR_REPORT
     error_type: str
     error_message: str
-    error_details: Dict[str, Any]
+    error_details: dict[str, Any]
 
-    def __init__(self, error_type: str, error_message: str, error_details: Dict[str, Any], metadata: MessageMetadata, **kwargs):
+    def __init__(self, error_type: str, error_message: str, error_details: dict[str, Any], metadata: MessageMetadata, **kwargs):
         super().__init__(
             message_type=MessageType.ERROR_REPORT,
             payload={
@@ -157,10 +157,10 @@ class AgentCommunicationService:
     def __init__(self):
         """Initialize the communication service."""
         self.message_queue: asyncio.Queue = asyncio.Queue()
-        self.message_history: List[AgentMessage] = []
-        self.error_handlers: Dict[str, callable] = {}
-        self.message_handlers: Dict[MessageType, callable] = {}
-        self.active_conversations: Dict[str, Dict[str, Any]] = {}
+        self.message_history: list[AgentMessage] = []
+        self.error_handlers: dict[str, callable] = {}
+        self.message_handlers: dict[MessageType, callable] = {}
+        self.active_conversations: dict[str, dict[str, Any]] = {}
 
         # Register default error handlers
         self._register_default_error_handlers()
@@ -174,7 +174,7 @@ class AgentCommunicationService:
         self.error_handlers["TimeoutError"] = self._handle_timeout_error
         self.error_handlers["ConnectionError"] = self._handle_connection_error
 
-    async def _handle_validation_error(self, error: Exception, message: AgentMessage) -> Dict[str, Any]:
+    async def _handle_validation_error(self, error: Exception, message: AgentMessage) -> dict[str, Any]:
         """Handle validation errors."""
         logger.error(f"Validation error in message {message.metadata.message_id}: {error}")
 
@@ -185,7 +185,7 @@ class AgentCommunicationService:
             "message": str(error)
         }
 
-    async def _handle_business_logic_error(self, error: Exception, message: AgentMessage) -> Dict[str, Any]:
+    async def _handle_business_logic_error(self, error: Exception, message: AgentMessage) -> dict[str, Any]:
         """Handle business logic errors."""
         logger.error(f"Business logic error in message {message.metadata.message_id}: {error}")
 
@@ -196,7 +196,7 @@ class AgentCommunicationService:
             "message": str(error)
         }
 
-    async def _handle_timeout_error(self, error: Exception, message: AgentMessage) -> Dict[str, Any]:
+    async def _handle_timeout_error(self, error: Exception, message: AgentMessage) -> dict[str, Any]:
         """Handle timeout errors."""
         logger.error(f"Timeout error in message {message.metadata.message_id}: {error}")
 
@@ -219,7 +219,7 @@ class AgentCommunicationService:
                 "message": "Maximum retries exceeded"
             }
 
-    async def _handle_connection_error(self, error: Exception, message: AgentMessage) -> Dict[str, Any]:
+    async def _handle_connection_error(self, error: Exception, message: AgentMessage) -> dict[str, Any]:
         """Handle connection errors."""
         logger.error(f"Connection error in message {message.metadata.message_id}: {error}")
 
@@ -233,10 +233,10 @@ class AgentCommunicationService:
     async def send_message(self, message: AgentMessage) -> bool:
         """
         Send a message through the communication system.
-        
+
         Args:
             message: The message to send
-            
+
         Returns:
             True if message was sent successfully
         """
@@ -321,10 +321,10 @@ class AgentCommunicationService:
     async def receive_message(self, timeout: Optional[float] = None) -> Optional[AgentMessage]:
         """
         Receive a message from the communication system.
-        
+
         Args:
             timeout: Optional timeout in seconds
-            
+
         Returns:
             Received message or None if timeout
         """
@@ -409,7 +409,7 @@ class AgentCommunicationService:
 
     async def create_validation_result_message(
         self,
-        validation_result: Dict[str, Any],
+        validation_result: dict[str, Any],
         sender_id: str,
         recipient_id: str,
         session_id: Optional[str] = None,
@@ -432,7 +432,7 @@ class AgentCommunicationService:
         self,
         error_type: str,
         error_message: str,
-        error_details: Dict[str, Any],
+        error_details: dict[str, Any],
         sender_id: str,
         recipient_id: str,
         session_id: Optional[str] = None,
@@ -454,17 +454,17 @@ class AgentCommunicationService:
             metadata=metadata
         )
 
-    async def get_conversation_history(self, session_id: str) -> List[str]:
+    async def get_conversation_history(self, session_id: str) -> list[str]:
         """Get conversation history for a session."""
         if session_id in self.active_conversations:
             return self.active_conversations[session_id]["messages"]
         return []
 
-    async def get_message_history(self, limit: int = 100) -> List[AgentMessage]:
+    async def get_message_history(self, limit: int = 100) -> list[AgentMessage]:
         """Get recent message history."""
         return self.message_history[-limit:]
 
-    async def get_communication_stats(self) -> Dict[str, Any]:
+    async def get_communication_stats(self) -> dict[str, Any]:
         """Get communication statistics."""
         return {
             "total_messages": len(self.message_history),
