@@ -340,7 +340,7 @@ class StateManager:
 #### L1: Static Analysis (Syntax, Style, Types)
 ```bash
 # Ensure new code follows existing patterns and style
-ruff check src/
+uv run ruff check src/
 mypy src/ --strict
 ```
 

@@ -17,10 +17,11 @@ $ARGUMENTS
 ## Review Focus Areas
 
 1. **Code Quality**
-   - Type hints on all functions and classes
+   - **Type annotations**: All functions must have return type annotations (`-> None` or `-> ReturnType`)
+   - **Exception chaining**: Use `raise NewError(msg) from e` not `raise NewError(msg)`
+   - **Import organization**: stdlib, third-party, local, conditional imports in that order
    - Pydantic v2 models for data validation
    - No print() statements (use logging)
-   - Proper error handling
    - Following PEP 8
    - Docstrings following google style python docstrings
 

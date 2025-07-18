@@ -17,6 +17,12 @@ from typing import Any, Callable, Optional, Union
 
 from src.config import config
 
+# Optional psutil import for performance monitoring
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 # Context variables for request tracking
 request_id: ContextVar[Optional[str]] = ContextVar('request_id', default=None)
 user_id: ContextVar[Optional[str]] = ContextVar('user_id', default=None)
@@ -117,7 +123,7 @@ class LoggerManager:
 
     def __init__(self) -> None:
         """Initialize logger manager."""
-        self._loggers: Dict[str, logging.Logger] = {}
+        self._loggers: dict[str, logging.Logger] = {}
         self._setup_root_logger()
         self._setup_handlers()
 

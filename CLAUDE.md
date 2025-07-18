@@ -111,6 +111,41 @@ curl -X POST http://localhost:8000/endpoint -H "Content-Type: application/json" 
 - L Don't hardcode values that should be config
 - L Don't catch all exceptions - be specific
 
+## Code Quality Standards
+
+### Quality Enforcement Strategy
+**For new code development, follow these standards to prevent technical debt accumulation:**
+
+- **Type Safety**: All new functions must have complete type annotations
+- **Code Style**: All new code must pass static analysis (ruff, mypy)
+- **Exception Handling**: Use proper exception chaining for debugging context
+- **Import Organization**: Follow consistent import ordering patterns
+
+### Validation Commands
+**Integrate these into your development workflow:**
+
+```bash
+# Quick validation for new code
+mypy src/new_module/ --strict
+uv run ruff check src/new_module/ --fix
+
+# Project-wide analysis (for reference)
+mypy src/ --strict
+uv run ruff check src/
+```
+
+### Code Quality Resources
+- **Templates**: Use PRP templates in `PRPs/templates/` - they include validation patterns
+- **Commands**: Reference `.claude/commands/code-quality/` for review and refactoring patterns  
+- **Configuration**: Project `pyproject.toml` configured to ignore legacy issues while enforcing standards for new code
+
+### Incremental Improvement Approach
+- **Legacy Code**: Existing code may have historical patterns that don't meet current standards
+- **New Code**: Must meet all quality standards before being considered complete
+- **Refactoring**: Use existing refactoring commands to gradually improve code quality
+
+This approach prevents technical debt accumulation while avoiding massive refactoring requirements.
+
 ## Working with This Framework
 
 ### When Creating new PRPs

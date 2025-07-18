@@ -28,5 +28,45 @@
     "used_at": null,
     "status": "active",
     "metadata": {}
+  },
+  "9e474137-7399-46f6-87d7-70b3d0be7a27": {
+    "id": "9e474137-7399-46f6-87d7-70b3d0be7a27",
+    "description": "A mysterious stranger arrives",
+    "target": "next",
+    "priority": 8,
+    "created_at": "2025-07-17 22:45:39.935279",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
+  },
+  "c6606ab3-346e-4e0b-9eb5-a61f6ddec82a": {
+    "id": "c6606ab3-346e-4e0b-9eb5-a61f6ddec82a",
+    "description": "A mysterious stranger arrives",
+    "target": "next",
+    "priority": 8,
+    "created_at": "2025-07-17 22:59:51.660729",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
+  },
+  "64926767-abdb-44f4-ac7c-3f849955622d": {
+    "id": "64926767-abdb-44f4-ac7c-3f849955622d",
+    "description": "A mysterious stranger arrives",
+    "target": "next",
+    "priority": 8,
+    "created_at": "2025-07-17 23:22:33.335503",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
+  },
+  "bc5a3104-c607-455d-be4e-5a752bc35ca8": {
+    "id": "bc5a3104-c607-455d-be4e-5a752bc35ca8",
+    "description": "Test catalyst for validation",
+    "target": "next",
+    "priority": 7,
+    "created_at": "2025-07-17 23:52:14.356256",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
   }
 }

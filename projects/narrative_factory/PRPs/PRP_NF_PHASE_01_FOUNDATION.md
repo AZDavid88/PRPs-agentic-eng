@@ -134,7 +134,7 @@ def get_logger(name: str):
 #### L1: Static Analysis (Syntax, Style, Types)
 ```bash
 # Ensure the new and modified code is clean.
-ruff check src/
+uv run ruff check src/
 mypy src/ --strict
 ```
 
@@ -143,16 +143,31 @@ mypy src/ --strict
 **Core System Validation:**
 ```bash
 # Test the sophisticated agent workflow system
-uv run python src/cli/main.py workflow generate --story-seed "Test validation" --dry-run
+uv run factory generate-enhanced "Test validation" --dry-run
 
 # Validate memory service integration
-uv run python -c "from src.memory.service import QdrantService; print('Memory service imports successfully')"
+python -c "
+import sys
+sys.path.insert(0, '.')
+from src.memory.service import QdrantService
+print('Memory service imports successfully')
+"
 
 # Test agent instantiation
-uv run python -c "from src.agents.director import DirectorAgent; print('Director agent imports successfully')"
+python -c "
+import sys
+sys.path.insert(0, '.')
+from src.agents.personas import DirectorAgent
+print('Director agent imports successfully')
+"
 
 # Validate configuration system
-uv run python -c "from src.config import models, qdrant, app; print('Config system operational')"
+python -c "
+import sys
+sys.path.insert(0, '.')
+from src.config import models, qdrant, app
+print('Config system operational')
+"
 ```
 
 **Expected Output:**
@@ -166,6 +181,6 @@ All commands should execute without errors, confirming:
 **Integration Test:**
 ```bash
 # Run the existing test suite to validate no regressions
-uv run pytest tests/ -v --tb=short
+PYTHONPATH=. uv run pytest tests/ -v --tb=short
 ```
 ---

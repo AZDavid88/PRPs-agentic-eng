@@ -147,8 +147,8 @@ class KnowledgeBase:
 #### L1: Static Analysis (Syntax, Style, Types)
 ```bash
 # Ensure the new code is clean.
-ruff check src/narrative_factory/
-mypy src/narrative_factory/ --strict
+uv run ruff check src/
+mypy src/ --strict
 ```
 
 #### L2: Functional Correctness (Validate Advanced Integration)
@@ -156,11 +156,13 @@ mypy src/narrative_factory/ --strict
 **Advanced Agent Integration Test:**
 ```bash
 # Test sophisticated agent instantiation and persona loading
-uv run python -c "
-from src.agents.director import DirectorAgent
-from src.agents.tactician import TacticianAgent  
-from src.agents.weaver import WeaverAgent
-from src.agents.canonist import CanonicistAgent
+python -c "
+import sys
+sys.path.insert(0, '.')
+from src.agents.personas import DirectorAgent
+from src.agents.personas import TacticianAgent  
+from src.agents.personas import WeaverAgent
+from src.agents.personas import CanonistAgent
 from src.memory.service import QdrantService
 
 # Test agent instantiation with persona loading
@@ -168,7 +170,7 @@ memory_service = QdrantService()
 director = DirectorAgent(memory_service=memory_service)
 tactician = TacticianAgent(memory_service=memory_service)
 weaver = WeaverAgent(memory_service=memory_service)
-canonist = CanonicistAgent(memory_service=memory_service)
+canonist = CanonistAgent(memory_service=memory_service)
 
 print('All advanced agents instantiated successfully')
 print(f'Director persona loaded: {len(director.persona) > 100}')
@@ -176,13 +178,15 @@ print(f'Memory service operational: {memory_service is not None}')
 "
 
 # Test workflow orchestration system
-uv run python -c "
+python -c "
+import sys
+sys.path.insert(0, '.')
 from src.workflows.generation import narrative_generation_workflow
 print('Workflow system imports successfully')
 "
 
 # Validate existing test suite
-uv run pytest tests/test_agents.py -v --tb=short
+PYTHONPATH=. uv run pytest tests/test_agents.py -v --tb=short
 ```
 
 **Expected Output:**
@@ -195,6 +199,6 @@ All tests should pass, confirming:
 **Integration Workflow Test:**
 ```bash
 # Test the complete HITL workflow system
-uv run python src/cli/main.py workflow generate --story-seed "Integration test" --dry-run --interactive=false
+uv run factory generate-enhanced "Integration test" --dry-run --non-interactive
 ```
 ---

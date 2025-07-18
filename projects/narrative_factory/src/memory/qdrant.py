@@ -31,12 +31,30 @@ try:
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
+    # Provide fallback types for testing
+    AsyncQdrantClient = None
+    Distance = None
+    FieldCondition = None
+    Filter = None
+    MatchAny = None
+    MatchValue = None
+    PointStruct = None
+    VectorParams = None
 
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
+# Lazy import sentence_transformers to avoid bus error during testing
+SENTENCE_TRANSFORMERS_AVAILABLE = None
+
+def _check_sentence_transformers():
+    """Lazy check for sentence_transformers availability."""
+    global SENTENCE_TRANSFORMERS_AVAILABLE
+    if SENTENCE_TRANSFORMERS_AVAILABLE is None:
+        try:
+            import importlib.util
+            spec = importlib.util.find_spec("sentence_transformers")
+            SENTENCE_TRANSFORMERS_AVAILABLE = spec is not None
+        except ImportError:
+            SENTENCE_TRANSFORMERS_AVAILABLE = False
+    return SENTENCE_TRANSFORMERS_AVAILABLE
 
 # Import ContextRetrievalResult - handle import issues for testing
 try:
@@ -265,7 +283,7 @@ class QdrantService:
         if not QDRANT_AVAILABLE:
             raise ImportError("qdrant-client is required. Install with: pip install qdrant-client")
 
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+        if not _check_sentence_transformers():
             raise ImportError("sentence-transformers is required. Install with: pip install sentence-transformers")
 
         # Get configuration from config system
@@ -333,9 +351,12 @@ class QdrantService:
             self._embedding_service = EmbeddingService(provider=self.embedding_provider)
         return self._embedding_service
 
-    async def _get_embedding_model(self) -> SentenceTransformer:
+    async def _get_embedding_model(self):
         """Lazy load the embedding model to avoid startup issues. (Deprecated - use _get_embedding_service)"""
         if self._embedding_model is None:
+            if not _check_sentence_transformers():
+                raise RuntimeError("sentence-transformers not available")
+            from sentence_transformers import SentenceTransformer
             self._embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         return self._embedding_model
 

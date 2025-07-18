@@ -21,11 +21,20 @@ try:
 except ImportError:
     TENACITY_AVAILABLE = False
 
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
+# Lazy import sentence_transformers to avoid bus error during testing
+SENTENCE_TRANSFORMERS_AVAILABLE = None
+
+def _check_sentence_transformers():
+    """Lazy check for sentence_transformers availability."""
+    global SENTENCE_TRANSFORMERS_AVAILABLE
+    if SENTENCE_TRANSFORMERS_AVAILABLE is None:
+        try:
+            import importlib.util
+            spec = importlib.util.find_spec("sentence_transformers")
+            SENTENCE_TRANSFORMERS_AVAILABLE = spec is not None
+        except ImportError:
+            SENTENCE_TRANSFORMERS_AVAILABLE = False
+    return SENTENCE_TRANSFORMERS_AVAILABLE
 
 from pydantic import BaseModel
 
@@ -69,15 +78,18 @@ class LocalSentenceTransformersProvider(EmbeddingProvider):
     """Local embedding provider using sentence-transformers."""
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+        if not _check_sentence_transformers():
             raise ImportError("sentence-transformers is required. Install with: pip install sentence-transformers")
 
         self.model_name = model_name
-        self._model: Optional[SentenceTransformer] = None
+        self._model = None
 
-    async def _get_model(self) -> SentenceTransformer:
+    async def _get_model(self):
         """Lazy load the model."""
         if self._model is None:
+            if not _check_sentence_transformers():
+                raise RuntimeError("sentence-transformers not available")
+            from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(self.model_name)
         return self._model
 

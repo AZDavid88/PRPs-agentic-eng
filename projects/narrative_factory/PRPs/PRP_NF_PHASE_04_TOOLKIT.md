@@ -30,7 +30,7 @@ Extend the existing functional CLI with advanced features including memory inspe
 - ✅ Basic memory service integration (ingest, test-connection)
 
 #### IMPLEMENTED FEATURES (50% → 80%):
-- ✅ **Advanced memory inspection and analytics tools** - `inspect_memory` and `inspect_state` commands
+- ✅ **Advanced memory inspection and analytics tools** - `inspect-memory` and `inspect-state` commands
 - ✅ **Comprehensive dry-run modes and simulation capabilities** - Full dry-run workflow with execution plans
 - ✅ **Advanced workflow orchestration with catalyst injection** - Enhanced generation with creative catalysts
 - ✅ **Catalyst management system** - Persistent catalyst storage and management
@@ -250,14 +250,14 @@ def inject_catalyst(
 #### IMPLEMENTED STEPS (Building on Existing Advanced CLI):
 1.  ✅ **Enhanced CLI Commands in Single File:**
     -   Enhanced `src/cli/commands.py` with all new functionality in existing structure
-    -   Integrated memory inspection (`inspect_memory`) with QdrantService two-tier retrieval
-    -   Added story state inspection (`inspect_state`) using StateManager from Phase 3
+    -   Integrated memory inspection (`inspect-memory`) with QdrantService two-tier retrieval
+    -   Added story state inspection (`inspect-state`) using StateManager from Phase 3
     -   Maintained existing CLI patterns and Rich console formatting
 
 2.  ✅ **Enhanced Workflow with Catalyst and Dry-Run:**
     -   Added `generate_enhanced` command with catalyst injection and comprehensive dry-run modes
     -   Integrated with existing workflow parameters and HITL system
-    -   Added catalyst management commands (`catalyst_add`, `catalyst_list`)
+    -   Added catalyst management commands (`catalyst-add`, `catalyst-list`)
     -   Implemented comprehensive dry-run that shows full execution plan
 
 3.  ✅ **Catalyst Management Service:**
@@ -287,7 +287,7 @@ def inject_catalyst(
 #### L1: Static Analysis (Syntax, Style, Types)
 ```bash
 # Ensure the new and modified code is clean.
-ruff check src/
+uv run ruff check src/
 mypy src/ --strict
 ```
 
@@ -296,26 +296,26 @@ mypy src/ --strict
 **Enhanced CLI Testing (Updated Command Names):**
 ```bash
 # Test memory inspection capabilities
-uv run python -m src.cli.commands inspect_memory "Elara" --limit 3
-uv run python -m src.cli.commands inspect_memory "ancient prophecy" --collection world_bible
+uv run factory inspect-memory "Elara" --limit 3
+uv run factory inspect-memory "ancient prophecy" --collection world_bible
 
 # Test story state inspection  
-uv run python -m src.cli.commands inspect_state --details
+uv run factory inspect-state --details
 
 # Test enhanced workflow with catalyst injection
-uv run python -m src.cli.commands generate_enhanced "A storm approaches" --catalyst "Ancient magic awakens" --dry-run
+uv run factory generate-enhanced "A storm approaches" --catalyst "Ancient magic awakens" --dry-run
 
 # Test catalyst management system
-uv run python -m src.cli.commands catalyst_add "A mysterious stranger arrives" --priority 8
+uv run factory catalyst-add "A mysterious stranger arrives" --priority 8
 
 # Test catalyst listing
-uv run python -m src.cli.commands catalyst_list --summary
+uv run factory catalyst-list --summary
 
 # Test comprehensive dry-run mode
-uv run python -m src.cli.commands generate_enhanced "The hero's journey begins" --dry-run --interactive=false
+uv run factory generate-enhanced "The hero's journey begins" --dry-run --non-interactive
 
 # Test existing workflow compatibility (original commands still work)
-uv run python -m src.cli.commands generate "Integration test"
+uv run factory generate "Integration test"
 ```
 
 **Expected Output:**
@@ -327,14 +327,14 @@ uv run python -m src.cli.commands generate "Integration test"
 
 **Integration Validation:**
 ```bash
-# Test command help and documentation (updated paths)
-uv run python -m src.cli.commands inspect_memory --help
-uv run python -m src.cli.commands generate_enhanced --help
-uv run python -m src.cli.commands catalyst_add --help
+# Test command help and documentation
+uv run factory inspect-memory --help
+uv run factory generate-enhanced --help
+uv run factory catalyst-add --help
 
 # Test existing commands still work
-uv run python -m src.cli.commands generate --help
-uv run python -m src.cli.commands status
+uv run factory generate --help
+uv run factory status
 ```
 
 **IMPLEMENTATION COMPLETE:**

@@ -35,10 +35,10 @@ def generate(
         "--characters", "-c",
         help="Comma-separated list of active character IDs"
     )
-):
+) -> None:
     """
     Start a new narrative generation workflow.
-    
+
     Initiates the Director agent with the provided seed and pauses for human review.
     """
     try:
@@ -63,7 +63,7 @@ def generate(
 def status():
     """
     Show all jobs pending human review.
-    
+
     Displays a formatted table of jobs awaiting approval or rejection.
     """
     try:
@@ -101,7 +101,7 @@ def review(
 ):
     """
     Review the output of a specific job.
-    
+
     Displays the agent's output in a formatted, readable way.
     """
     try:
@@ -134,7 +134,7 @@ def approve(
 ):
     """
     Approve a job and continue the workflow.
-    
+
     Marks the job as approved and triggers the next stage of the generation pipeline.
     """
     try:
@@ -181,7 +181,7 @@ def reject(
 ):
     """
     Reject a job with feedback for improvement.
-    
+
     Marks the job as rejected and provides feedback for the agent to improve output.
     """
     try:
@@ -206,7 +206,7 @@ def reject(
 def ingest():
     """
     Ingest bootstrap data into the Qdrant vector database.
-    
+
     Populates the memory system with initial world building and character data.
     """
     try:
@@ -230,7 +230,7 @@ def ingest():
 def test_connection():
     """
     Test connections to Redis and Qdrant services.
-    
+
     Validates that all required services are accessible.
     """
     try:
@@ -251,7 +251,7 @@ def test_connection():
             # Basic connection test - use async
             async def test_qdrant():
                 try:
-                    info = await qdrant_service.get_collection_info("world_bible")
+                    await qdrant_service.get_collection_info("world_bible")
                     return True
                 except:
                     return False
@@ -292,7 +292,7 @@ def inspect_memory(
 
                 # Get collection info as a simple test
                 collection_info = await memory_service.get_collection_info(collection)
-                
+
                 # For now, simulate results for demonstration
                 spotlight_results = [
                     {
@@ -301,7 +301,7 @@ def inspect_memory(
                         "score": 1.0
                     },
                     {
-                        "source": "Search Query", 
+                        "source": "Search Query",
                         "content": f"Query: '{query}' - Memory system operational",
                         "score": 0.95
                     }
