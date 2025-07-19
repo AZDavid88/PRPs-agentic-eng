@@ -9,6 +9,7 @@ import asyncio
 import uuid
 from typing import Any, Optional, Union
 
+from src.agents.librarian import LibrarianAgent
 from src.agents.lifecycle import (
     AgentContext,
     get_agent_registry,
@@ -50,7 +51,8 @@ class AgentOrchestrationService:
             "director": [],
             "tactician": [],
             "weaver": [],
-            "canonist": []
+            "canonist": [],
+            "librarian": []
         }
 
         # Session tracking
@@ -69,7 +71,7 @@ class AgentOrchestrationService:
         Initialize and register a new agent with lifecycle management.
 
         Args:
-            agent_type: Type of agent (director, tactician, weaver, canonist)
+            agent_type: Type of agent (director, tactician, weaver, canonist, librarian)
             agent_id: Optional custom agent ID
             client_type: LLM client type (gemini, openai)
             session_id: Optional session ID for tracking
@@ -117,13 +119,14 @@ class AgentOrchestrationService:
         agent_type: str,
         client_type: str,
         memory_service: MemoryService
-    ) -> Union[DirectorAgent, TacticianAgent, WeaverAgent, CanonistAgent]:
+    ) -> Union[DirectorAgent, TacticianAgent, WeaverAgent, CanonistAgent, LibrarianAgent]:
         """Create agent instance based on type."""
         agent_classes = {
             "director": DirectorAgent,
             "tactician": TacticianAgent,
             "weaver": WeaverAgent,
-            "canonist": CanonistAgent
+            "canonist": CanonistAgent,
+            "librarian": LibrarianAgent
         }
 
         if agent_type not in agent_classes:
@@ -194,6 +197,14 @@ class AgentOrchestrationService:
                     result = await agent_instance.execute(
                         content=request_data.get("content", ""),
                         context=context
+                    )
+                elif lifecycle_manager.agent_type == "librarian":
+                    # LibrarianAgent expects materials list and optional configuration
+                    materials = request_data.get("materials", [])
+                    analysis_config = request_data.get("analysis_config", {})
+                    result = await agent_instance.execute(
+                        materials,
+                        **analysis_config
                     )
                 else:
                     raise BusinessLogicError(f"Unknown agent type: {lifecycle_manager.agent_type}")

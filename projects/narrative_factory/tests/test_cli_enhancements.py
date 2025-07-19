@@ -21,7 +21,7 @@ class TestMemoryInspection:
         assert "--limit" in result.stdout
         assert "--similarity-threshold" in result.stdout
 
-    @patch('src.cli.commands.QdrantService')
+    @patch('src.memory.qdrant.QdrantService')
     def test_inspect_memory_basic(self, mock_qdrant_service):
         """Test basic memory inspection command."""
         # Mock the service
@@ -44,7 +44,7 @@ class TestMemoryInspection:
         # Note: Rich formatting makes exact string matching difficult
         # Just verify the command executes successfully
 
-    @patch('src.cli.commands.QdrantService')
+    @patch('src.memory.qdrant.QdrantService')
     def test_inspect_memory_with_options(self, mock_qdrant_service):
         """Test memory inspection with custom options."""
         mock_service = Mock()
@@ -77,7 +77,7 @@ class TestStateInspection:
         assert "--details" in result.stdout
         assert "--story-id" in result.stdout
 
-    @patch('src.cli.commands.StateManager')
+    @patch('src.services.state_manager.StateManager')
     def test_inspect_state_basic(self, mock_state_manager):
         """Test basic state inspection command."""
         mock_manager = Mock()
@@ -98,7 +98,7 @@ class TestStateInspection:
         assert result.exit_code == 0
         mock_manager.get_state_summary.assert_called_once()
 
-    @patch('src.cli.commands.StateManager')
+    @patch('src.services.state_manager.StateManager')
     def test_inspect_state_with_details(self, mock_state_manager):
         """Test state inspection with details flag."""
         mock_manager = Mock()
@@ -182,7 +182,7 @@ class TestCatalystManagement:
         assert "--target" in result.stdout
         assert "--priority" in result.stdout
 
-    @patch('src.cli.commands.CatalystManager')
+    @patch('src.services.catalyst_manager.CatalystManager')
     def test_catalyst_add_basic(self, mock_catalyst_manager):
         """Test basic catalyst addition."""
         mock_manager = Mock()
@@ -203,7 +203,7 @@ class TestCatalystManagement:
             priority=5
         )
 
-    @patch('src.cli.commands.CatalystManager')
+    @patch('src.services.catalyst_manager.CatalystManager')
     def test_catalyst_add_with_options(self, mock_catalyst_manager):
         """Test catalyst addition with custom options."""
         mock_manager = Mock()
@@ -231,7 +231,7 @@ class TestCatalystManagement:
         assert "--target" in result.stdout
         assert "--summary" in result.stdout
 
-    @patch('src.cli.commands.CatalystManager')
+    @patch('src.services.catalyst_manager.CatalystManager')
     def test_catalyst_list_basic(self, mock_catalyst_manager):
         """Test basic catalyst listing."""
         mock_manager = Mock()
@@ -251,7 +251,7 @@ class TestCatalystManagement:
         # Command should execute successfully
         mock_manager.list_catalysts.assert_called_once()
 
-    @patch('src.cli.commands.CatalystManager')
+    @patch('src.services.catalyst_manager.CatalystManager')
     def test_catalyst_list_with_summary(self, mock_catalyst_manager):
         """Test catalyst listing with summary."""
         mock_manager = Mock()

@@ -1,7 +1,7 @@
 # PRP: Phase 4 - The Conductor's Toolkit (CLI)
 
 **PRP Version:** 1.1  
-**Status:** EXTENSION_AND_ENHANCEMENT  
+**Status:** EXTENSION_AND-ENHANCEMENT  
 **Parent Epic:** The bridging plan from MVP to the v3 vision.
 **Target Agent:** Gemini
 
@@ -52,41 +52,41 @@ from rich.table import Table
 from rich.panel import Panel
 
 from src.memory.service import QdrantService
-from src.utils.logging import get_logger
-from src.cli.utils.formatting import format_results, create_status_panel
+from src.utils.logging import get-logger
+from src.cli.utils.formatting import format-results, create_status-panel
 
 app = typer.Typer(name="inspect", help="Inspect knowledge base and story state")
 console = Console()
-logger = get_logger(__name__)
+logger = get-logger(__name_-)
 
 @app.command("memory")
-def inspect_memory(
+def inspect-memory(
     query: str = typer.Argument(..., help="Entity to search for (character, location, concept)"),
-    collection: str = typer.Option("world_bible", help="Qdrant collection to search"),
+    collection: str = typer.Option("world-bible", help="Qdrant collection to search"),
     limit: int = typer.Option(5, help="Maximum number of results to return"),
-    similarity_threshold: float = typer.Option(0.7, help="Minimum similarity score")
+    similarity-threshold: float = typer.Option(0.7, help="Minimum similarity score")
 ):
     """Inspect memory/knowledge base for specific entities."""
     with console.status(f"[bold cyan]Searching knowledge base for '{query}'..."):
         try:
-            memory_service = QdrantService()
+            memory-service = QdrantService()
             
             # Use existing memory service methods
-            collection_info = await memory_service.get_collection_info(collection)
-            spotlight_results = await memory_service.search_by_content(
-                query_text=query, 
-                collection_name=collection, 
+            collection-info = await memory-service.get_collection-info(collection)
+            spotlight-results = await memory-service.search_by-content(
+                query-text=query, 
+                collection-name=collection, 
                 limit=limit
             )
             
             # Create rich formatted output
             table = Table(title=f"Knowledge Base Results for '{query}'")
-            table.add_column("Source", style="cyan")
-            table.add_column("Content", style="white")
-            table.add_column("Score", style="green")
+            table.add-column("Source", style="cyan")
+            table.add-column("Content", style="white")
+            table.add-column("Score", style="green")
             
-            for result in spotlight_results:
-                table.add_row(
+            for result in spotlight-results:
+                table.add-row(
                     result.get("source", "Unknown"),
                     result.get("content", "")[:100] + "...",
                     f"{result.get('score', 0):.3f}"
@@ -96,54 +96,54 @@ def inspect_memory(
             
             # Display collection statistics
             console.print(f"\n[bold yellow]Collection Info:[/bold yellow]")
-            console.print(f"Documents: {collection_info.get('points_count', 0)}")
-            console.print(f"Status: {collection_info.get('status', 'Unknown')}")
+            console.print(f"Documents: {collection-info.get('points-count', 0)}")
+            console.print(f"Status: {collection-info.get('status', 'Unknown')}")
                     
         except Exception as e:
             logger.error(f"Memory inspection failed: {e}")
             console.print(f"[red]Error inspecting memory: {e}[/red]")
 
 @app.command("state")
-def inspect_state(
-    story_id: Optional[str] = typer.Option(None, help="Specific story ID to inspect"),
-    show_details: bool = typer.Option(False, "--details", help="Show detailed state information")
+def inspect-state(
+    story-id: Optional[str] = typer.Option(None, help="Specific story ID to inspect"),
+    show-details: bool = typer.Option(False, "--details", help="Show detailed state information")
 ):
     """Inspect current story state and continuity information."""
-    from src.services.state_manager import StateManager
+    from src.services.state-manager import StateManager
     
     with console.status("[bold cyan]Loading story state..."):
         try:
-            state_manager = StateManager()
-            state_summary = state_manager.get_state_summary(story_id)
+            state-manager = StateManager()
+            state-summary = state-manager.get_state-summary(story-id)
             
             # Create comprehensive state display
-            state_table = Table(title="Story State Summary")
-            state_table.add_column("Property", style="cyan")
-            state_table.add_column("Value", style="white")
+            state-table = Table(title="Story State Summary")
+            state-table.add-column("Property", style="cyan")
+            state-table.add-column("Value", style="white")
             
-            for key, value in state_summary.items():
-                state_table.add_row(key.replace("_", " ").title(), str(value))
+            for key, value in state-summary.items():
+                state-table.add-row(key.replace("-", " ").title(), str(value))
                 
-            console.print(state_table)
+            console.print(state-table)
             
-            if show_details:
-                full_state = state_manager.load_latest_state(story_id)
+            if show-details:
+                full-state = state-manager.load_latest-state(story-id)
                 
                 # Show active plot threads
-                if full_state.active_plot_threads:
+                if full-state.active_plot-threads:
                     console.print("\n[bold yellow]Active Plot Threads:[/bold yellow]")
-                    for thread in full_state.active_plot_threads:
+                    for thread in full-state.active_plot-threads:
                         console.print(Panel(
                             f"Priority: {thread.priority}/10\n{thread.description}",
                             title=f"Thread #{thread.id[:8]}",
-                            border_style="blue"
+                            border-style="blue"
                         ))
                         
                 # Show recent knowledge revelations
-                if full_state.protagonist_knowledge:
+                if full-state.protagonist-knowledge:
                     console.print("\n[bold yellow]Recent Knowledge Revelations:[/bold yellow]")
-                    for revelation in full_state.protagonist_knowledge[-3:]:
-                        console.print(f"• {revelation.concept} (Chapter {revelation.chapter_discovered})")
+                    for revelation in full-state.protagonist-knowledge[-3:]:
+                        console.print(f"• {revelation.concept} (Chapter {revelation.chapter-discovered})")
                         
         except Exception as e:
             logger.error(f"State inspection failed: {e}")
@@ -154,32 +154,32 @@ def inspect_state(
 ```python
 # Enhancement to existing workflow generate command
 @app.command("generate")  
-def generate_with_enhancements(
-    story_seed: str = typer.Argument(..., help="Initial story seed or prompt"),
+def generate_with-enhancements(
+    story-seed: str = typer.Argument(..., help="Initial story seed or prompt"),
     catalyst: Optional[str] = typer.Option(None, "--catalyst", "-c", help="Creative catalyst to inject into generation"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Perform comprehensive dry run without LLM calls"),
+    dry-run: bool = typer.Option(False, "--dry-run", help="Perform comprehensive dry run without LLM calls"),
     interactive: bool = typer.Option(True, "--interactive/--non-interactive", help="Enable human-in-the-loop checkpoints"),
-    output_format: str = typer.Option("console", help="Output format: console, json, or stream-json"),
-    story_id: Optional[str] = typer.Option(None, help="Continue existing story by ID")
+    output-format: str = typer.Option("console", help="Output format: console, json, or stream-json"),
+    story-id: Optional[str] = typer.Option(None, help="Continue existing story by ID")
 ):
     """Enhanced story generation with catalyst injection and dry-run capabilities."""
     
     # Build comprehensive generation parameters
-    generation_params = {
-        "story_seed": story_seed,
+    generation-params = {
+        "story-seed": story-seed,
         "interactive": interactive,
-        "output_format": output_format,
-        "story_id": story_id
+        "output-format": output-format,
+        "story-id": story-id
     }
     
     # Add catalyst if provided
     if catalyst:
-        generation_params["catalyst"] = catalyst
+        generation-params["catalyst"] = catalyst
         console.print(f"[yellow]Catalyst injected:[/yellow] {catalyst}")
         
     # Configure dry-run mode
-    if dry_run:
-        generation_params["dry_run"] = True
+    if dry-run:
+        generation-params["dry-run"] = True
         console.print("[bold yellow]DRY RUN MODE - No LLM calls will be made[/bold yellow]")
         
         # Show what would be executed
@@ -199,17 +199,17 @@ def generate_with_enhancements(
     
     # Execute the enhanced workflow
     try:
-        from src.workflows.generation import narrative_generation_workflow
+        from src.workflows.generation import narrative_generation-workflow
         
         with console.status("[bold green]Executing narrative generation workflow..."):
-            result = narrative_generation_workflow.with_options(
-                parameters=generation_params
+            result = narrative_generation-workflow.with-options(
+                parameters=generation-params
             )()
             
-        if result.is_completed():
+        if result.is-completed():
             console.print("[bold green]✓[/bold green] Generation completed successfully!")
             if hasattr(result, 'result') and result.result():
-                console.print(f"Chapter generated: {result.result().get('chapter_file', 'Unknown')}")
+                console.print(f"Chapter generated: {result.result().get('chapter-file', 'Unknown')}")
         else:
             console.print(f"[yellow]Generation status:[/yellow] {result.name}")
             
@@ -219,24 +219,24 @@ def generate_with_enhancements(
         raise typer.Exit(1)
 
 @app.command("catalyst")
-def inject_catalyst(
+def inject-catalyst(
     catalyst: str = typer.Argument(..., help="Creative catalyst to inject"),
-    target: str = typer.Option("next", help="Target: 'next' for next generation, or story_id"),
+    target: str = typer.Option("next", help="Target: 'next' for next generation, or story-id"),
     priority: int = typer.Option(5, help="Priority level 1-10")
 ):
     """Inject a creative catalyst for upcoming generation cycles."""
     
     # Store catalyst for next generation
-    from src.services.catalyst_manager import CatalystManager
+    from src.services.catalyst-manager import CatalystManager
     
-    catalyst_manager = CatalystManager()
-    catalyst_id = catalyst_manager.add_catalyst(
+    catalyst-manager = CatalystManager()
+    catalyst-id = catalyst-manager.add-catalyst(
         description=catalyst,
         target=target,
         priority=priority
     )
     
-    console.print(f"[green]✓[/green] Catalyst injected (ID: {catalyst_id[:8]})")
+    console.print(f"[green]✓[/green] Catalyst injected (ID: {catalyst-id[:8]})")
     console.print(f"[dim]Target: {target}, Priority: {priority}/10[/dim]")
     console.print(f"[yellow]Catalyst:[/yellow] {catalyst}")
 ```
@@ -255,13 +255,13 @@ def inject_catalyst(
     -   Maintained existing CLI patterns and Rich console formatting
 
 2.  ✅ **Enhanced Workflow with Catalyst and Dry-Run:**
-    -   Added `generate_enhanced` command with catalyst injection and comprehensive dry-run modes
+    -   Added `generate-enhanced` command with catalyst injection and comprehensive dry-run modes
     -   Integrated with existing workflow parameters and HITL system
     -   Added catalyst management commands (`catalyst-add`, `catalyst-list`)
     -   Implemented comprehensive dry-run that shows full execution plan
 
 3.  ✅ **Catalyst Management Service:**
-    -   Created `src/services/catalyst_manager.py` for storing and managing creative catalysts
+    -   Created `src/services/catalyst-manager.py` for storing and managing creative catalysts
     -   Integrated with existing JobStore patterns for persistence
     -   Added targeting for specific stories or next generation cycles
     -   Implemented priority management for multiple catalysts
@@ -288,7 +288,7 @@ def inject_catalyst(
 ```bash
 # Ensure the new and modified code is clean.
 uv run ruff check src/
-mypy src/ --strict
+uv run mypy src/ --strict
 ```
 
 #### L2: Functional Correctness (Do the commands work?)
@@ -297,7 +297,7 @@ mypy src/ --strict
 ```bash
 # Test memory inspection capabilities
 uv run factory inspect-memory "Elara" --limit 3
-uv run factory inspect-memory "ancient prophecy" --collection world_bible
+uv run factory inspect-memory "ancient prophecy" --collection world-bible
 
 # Test story state inspection  
 uv run factory inspect-state --details

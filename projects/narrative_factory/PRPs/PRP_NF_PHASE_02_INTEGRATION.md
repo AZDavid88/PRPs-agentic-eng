@@ -1,7 +1,7 @@
 # PRP: Phase 2 - Persona & Knowledge Integration
 
 **PRP Version:** 1.1  
-**Status:** IMPLEMENTATION_AND_INTEGRATION  
+**Status:** IMPLEMENTATION_AND-INTEGRATION  
 **Parent Epic:** The bridging plan from MVP to the v3 vision.
 **Target Agent:** Gemini
 
@@ -37,64 +37,64 @@ Implement PersonaManager for dynamic prompt loading and enhance agent integratio
 - **ADD:** Agent communication protocols and error handling
 
 #### Key Dependencies & Imports:
-- `qdrant_client`: To interact with Qdrant from the `KnowledgeBase`.
+- `qdrant-client`: To interact with Qdrant from the `KnowledgeBase`.
 - `src.config`: The `PersonaManager` and `KnowledgeBase` will be configured using our centralized settings.
 - `src.logger`: For logging within these new modules.
 
 #### Required Patterns & Code Snippets:
 
-**Pattern for `PersonaManager` in `src/narrative_factory/personas.py`:**
+**Pattern for `PersonaManager` in `src/narrative-factory/personas.py`:**
 ```python
 from pathlib import Path
-from src.config import PERSONAS_DIR
-from src.logger import get_logger
+from src.config import PERSONAS-DIR
+from src.logger import get-logger
 
-logger = get_logger(__name__)
+logger = get-logger(__name_-)
 
 class PersonaManager:
-    def __init__(self, persona_dir: Path = PERSONAS_DIR):
-        self.persona_dir = persona_dir
-        self._cache = {}
+    def __init_-(self, persona-dir: Path = PERSONAS-DIR):
+        self.persona-dir = persona-dir
+        self.-cache = {}
 
-    def get_system_prompt(self, persona_name: str) -> str:
-        if persona_name in self._cache:
-            return self._cache[persona_name]
+    def get_system-prompt(self, persona-name: str) -> str:
+        if persona-name in self.-cache:
+            return self.-cache[persona-name]
 
         try:
-            file_path = self.persona_dir / f"{persona_name}.txt"
-            with open(file_path, 'r', encoding='utf-8') as f:
+            file-path = self.persona-dir / f"{persona-name}.txt"
+            with open(file-path, 'r', encoding='utf-8') as f:
                 prompt = f.read()
-            self._cache[persona_name] = prompt
+            self.-cache[persona-name] = prompt
             return prompt
         except FileNotFoundError:
-            logger.error(f"Persona file not found: {file_path}")
+            logger.error(f"Persona file not found: {file-path}")
             # Return a generic, safe default
             return "You are a helpful assistant."
 ```
 
-**Pattern for `KnowledgeBase` in `src/narrative_factory/knowledge.py`:**
+**Pattern for `KnowledgeBase` in `src/narrative-factory/knowledge.py`:**
 ```python
-from qdrant_client import QdrantClient
-from src.config import qdrant as qdrant_settings
-from src.logger import get_logger
+from qdrant-client import QdrantClient
+from src.config import qdrant as qdrant-settings
+from src.logger import get-logger
 
-logger = get_logger(__name__)
+logger = get-logger(__name_-)
 
 class KnowledgeBase:
-    def __init__(self):
-        self.qdrant_client = QdrantClient(
-            url=qdrant_settings.URL, 
-            api_key=qdrant_settings.API_KEY
+    def __init_-(self):
+        self.qdrant-client = QdrantClient(
+            url=qdrant-settings.URL, 
+            api-key=qdrant-settings.API-KEY
         )
 
-    def get_prose_style_guide(self) -> str:
+    def get_prose_style-guide(self) -> str:
         # High-level method. Implementation will involve a specific
-        # query to Qdrant to find the document tagged as 'style_guide'.
+        # query to Qdrant to find the document tagged as 'style-guide'.
         # For now, can return a placeholder.
         logger.info("Fetching prose style guide...")
         return "This is a placeholder for the prose style guide."
 
-    def find_relevant_lore(self, topic: str) -> list[str]:
+    def find_relevant-lore(self, topic: str) -> list[str]:
         # This method will contain the RAG logic (vector search).
         logger.info(f"Searching for lore related to: {topic}")
         # Placeholder implementation
@@ -148,7 +148,7 @@ class KnowledgeBase:
 ```bash
 # Ensure the new code is clean.
 uv run ruff check src/
-mypy src/ --strict
+uv run mypy src/ --strict
 ```
 
 #### L2: Functional Correctness (Validate Advanced Integration)
@@ -166,27 +166,27 @@ from src.agents.personas import CanonistAgent
 from src.memory.service import QdrantService
 
 # Test agent instantiation with persona loading
-memory_service = QdrantService()
-director = DirectorAgent(memory_service=memory_service)
-tactician = TacticianAgent(memory_service=memory_service)
-weaver = WeaverAgent(memory_service=memory_service)
-canonist = CanonistAgent(memory_service=memory_service)
+memory-service = QdrantService()
+director = DirectorAgent(memory-service=memory-service)
+tactician = TacticianAgent(memory-service=memory-service)
+weaver = WeaverAgent(memory-service=memory-service)
+canonist = CanonistAgent(memory-service=memory-service)
 
 print('All advanced agents instantiated successfully')
 print(f'Director persona loaded: {len(director.persona) > 100}')
-print(f'Memory service operational: {memory_service is not None}')
+print(f'Memory service operational: {memory-service is not None}')
 "
 
 # Test workflow orchestration system
 python -c "
 import sys
 sys.path.insert(0, '.')
-from src.workflows.generation import narrative_generation_workflow
+from src.workflows.generation import narrative_generation-workflow
 print('Workflow system imports successfully')
 "
 
 # Validate existing test suite
-PYTHONPATH=. uv run pytest tests/test_agents.py -v --tb=short
+PYTHONPATH=. uv run pytest tests/test-agents.py -v --tb=short
 ```
 
 **Expected Output:**

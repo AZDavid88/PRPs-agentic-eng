@@ -8,7 +8,7 @@ for all application components.
 import asyncio
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -96,7 +96,7 @@ class HealthMonitor:
                     status=result.get("status", HealthStatus.UNKNOWN),
                     message=result.get("message", "No message"),
                     duration_ms=check_duration,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     details=result.get("details") if include_detailed else None
                 ))
 
@@ -107,7 +107,7 @@ class HealthMonitor:
                     status=HealthStatus.UNHEALTHY,
                     message=f"Health check failed: {str(e)}",
                     duration_ms=(time.time() - start_time) * 1000,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     details={"error": str(e)} if include_detailed else None
                 ))
 
@@ -118,7 +118,7 @@ class HealthMonitor:
         system_health = SystemHealth(
             status=overall_status,
             checks=checks,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             uptime_seconds=time.time() - self.start_time
         )
 

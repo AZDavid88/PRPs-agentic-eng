@@ -1,0 +1,10 @@
+### 00_LODESTONE.md
+
+**What is the thematic core of this saga?**
+The core theme is the triumph of **methodical inquiry, applied logic, and earned understanding over dogma and brute force.** It explores the idea that true mastery comes not from inherited talent or random luck, but from relentless dedication to understanding the underlying "how" and "why" of the universe, ultimately empowering the undervalued to reshape reality. It's a celebration of the everyday scientific mindset applied to magic, proving that intuitive knowledge and persistent effort are the ultimate, limitless power.
+
+**What is the core payoff/reader experience?**
+Readers will experience the deep satisfaction of watching an ordinary, relatable underdog methodically dismantle the mysteries of a fantastical world. The payoff comes from the repeated "aha!" moments of discovery, the visceral thrill of seeing intellectual breakthroughs translate into tangible, game-like power gains (at a lite-to-medium crunch level), and the gratification of witnessing genuine ingenuity and hard work being quantifiably rewarded. It’s the joy of watching someone "figure out" reality with a curious, analytical mind, delivering a unique blend of intellectual stimulation and wish-fulfillment.
+
+**What is the passion driving this narrative forward?**
+The narrative is driven by an insatiable curiosity – both the protagonist's and the reader's. It's the passion for discovery, for peeling back layers of the unknown, and for the sheer intellectual satisfaction of solving complex, world-altering puzzles. This is amplified by the gratification of seeing the protagonist (and by proxy, the reader) become "smart" and "competent" in a new world, validating the idea that deep understanding leads to true, limitless power, regardless of one's starting point.

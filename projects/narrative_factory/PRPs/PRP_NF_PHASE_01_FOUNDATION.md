@@ -1,7 +1,7 @@
 # PRP: Phase 1 - Solidify Application Foundation
 
 **PRP Version:** 1.1  
-**Status:** ENHANCEMENT_AND_HARDENING  
+**Status:** ENHANCEMENT_AND-HARDENING  
 **Parent Epic:** The bridging plan from MVP to the v3 vision.
 **Target Agent:** Gemini
 
@@ -24,7 +24,7 @@ Enhance and harden the existing basic foundation structure to create a centraliz
 #### Current Implementation Status:
 **IMPLEMENTED (60% Complete):**
 - ✅ `src/config.py` - Basic configuration with Pydantic models (ModelSettings, QdrantSettings, AppSettings)
-- ✅ `src/narrative_factory/` - Basic package structure with agents, memory, workflows
+- ✅ `src/narrative-factory/` - Basic package structure with agents, memory, workflows
 - ✅ `src/cli/` - Functional CLI with Typer and basic commands
 - ✅ `src/agents/` - Agent personas with basic models and prompt loading
 - ✅ Basic memory pipeline with Qdrant integration
@@ -49,20 +49,20 @@ Enhance and harden the existing basic foundation structure to create a centraliz
 # src/config.py
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load-dotenv
 
-load_dotenv()
+load-dotenv()
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT-ROOT = Path(__file_-).parent.parent
 # ... other paths ...
 
 class ModelSettings:
-    GENERATION_MODEL = "gemini-1.5-pro-latest"
+    GENERATION-MODEL = "gemini-1.5-pro-latest"
     # ... other model settings ...
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GEMINI_API-KEY = os.getenv("GEMINI_API-KEY")
 
 class QdrantSettings:
-    URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+    URL = os.getenv("QDRANT-URL", "http://localhost:6333")
     # ... other qdrant settings ...
 
 # Instantiate for easy import
@@ -74,15 +74,15 @@ qdrant = QdrantSettings()
 ```python
 # src/logger.py
 import logging
-from src.config import app as app_settings
+from src.config import app as app-settings
 
-def get_logger(name: str):
+def get-logger(name: str):
     logging.basicConfig(
-        level=app_settings.LOG_LEVEL,
+        level=app-settings.LOG-LEVEL,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler(app_settings.LOG_FILE)
+            logging.FileHandler(app-settings.LOG-FILE)
         ]
     )
     return logging.getLogger(name)
@@ -135,7 +135,7 @@ def get_logger(name: str):
 ```bash
 # Ensure the new and modified code is clean.
 uv run ruff check src/ --fix
-PYTHONPATH=/workspaces/PRPs-agentic-eng/projects/narrative_factory uv run mypy src/ --strict --follow-imports=skip
+PYTHONPATH=/workspaces/PRPs-agentic-eng/projects/narrative-factory uv run mypy src/ --strict --follow-imports=skip
 ```
 
 #### L2: Functional Correctness (Validate Advanced Implementation)

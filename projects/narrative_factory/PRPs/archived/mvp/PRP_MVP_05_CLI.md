@@ -17,8 +17,8 @@ To create the primary user **command and control interface** for the MVP. This w
 
 ### Success Criteria
 
-- [ ] A `factory.py` file exists at the project root, running the Typer app from `src/narrative_factory/cli/commands.py`.
-- [ ] A `generate` command is implemented that triggers the *start* of the Prefect `generation_flow`.
+- [ ] A `factory.py` file exists at the project root, running the Typer app from `src/narrative-factory/cli/commands.py`.
+- [ ] A `generate` command is implemented that triggers the *start* of the Prefect `generation-flow`.
 - [ ] An `ingest` command is implemented to populate the Qdrant database.
 - [ ] **New HITL commands are implemented:** `status`, `review`, `approve`, and `reject`.
 - [ ] These new commands correctly interact with the `JobStore` service to update and query the state of jobs in Redis.
@@ -77,7 +77,7 @@ Based on Context7 Typer patterns, implement the comprehensive CLI interface:
 ### 1. Core CLI Application Structure
 
 ```python
-# In src/narrative_factory/cli/commands.py
+# In src/narrative-factory/cli/commands.py
 import typer
 import json
 import asyncio
@@ -85,30 +85,30 @@ from typing import Optional
 from rich.console import Console
 from rich.table import Table
 from rich.json import JSON
-from narrative_factory.workflows.generation import (
-    initial_generation_flow, 
-    continue_generation_flow, 
-    finalize_generation_flow
+from narrative-factory.workflows.generation import (
+    initial_generation-flow, 
+    continue_generation-flow, 
+    finalize_generation-flow
 )
-from narrative_factory.workflows.jobs import JobStore
-from narrative_factory.memory.qdrant import QdrantService
+from narrative-factory.workflows.jobs import JobStore
+from narrative-factory.memory.qdrant import QdrantService
 
 # Create Typer app with help configuration
 app = typer.Typer(
     name="factory",
     help="Narrative Factory CLI - AI-powered storytelling engine with Human-in-the-Loop workflow",
-    no_args_is_help=True
+    no_args_is-help=True
 )
 
 # Initialize services
 console = Console()
-job_store = JobStore()
+job-store = JobStore()
 
 @app.command()
 def generate(
     seed: str = typer.Argument(..., help="The chapter seed or initial prompt for story generation"),
     characters: str = typer.Option(
-        "char_protagonist", 
+        "char-protagonist", 
         "--characters", "-c", 
         help="Comma-separated list of active character IDs"
     )
@@ -120,17 +120,17 @@ def generate(
     """
     try:
         # Parse character list
-        character_list = [char.strip() for char in characters.split(",")]
+        character-list = [char.strip() for char in characters.split(",")]
         
         console.print(f"🎬 Starting generation with seed: [bold cyan]{seed}[/bold cyan]")
-        console.print(f"📋 Active characters: {', '.join(character_list)}")
+        console.print(f"📋 Active characters: {', '.join(character-list)}")
         
         # Run initial Prefect flow
-        director_job_id = initial_generation_flow(seed, character_list)
+        director_job-id = initial_generation-flow(seed, character-list)
         
-        console.print(f"✅ Director task initiated. Job ID: [bold yellow]{director_job_id}[/bold yellow]")
-        console.print("📝 Use [bold green]factory review {director_job_id}[/bold green] to review the strategic brief")
-        console.print("✅ Use [bold green]factory approve {director_job_id}[/bold green] to continue workflow")
+        console.print(f"✅ Director task initiated. Job ID: [bold yellow]{director_job-id}[/bold yellow]")
+        console.print("📝 Use [bold green]factory review {director_job-id}[/bold green] to review the strategic brief")
+        console.print("✅ Use [bold green]factory approve {director_job-id}[/bold green] to continue workflow")
         
     except Exception as e:
         console.print(f"❌ Error starting generation: {e}", style="bold red")
@@ -144,29 +144,29 @@ def status():
     Displays a formatted table of jobs awaiting approval or rejection.
     """
     try:
-        pending_jobs = job_store.get_pending_jobs()
+        pending-jobs = job-store.get_pending-jobs()
         
-        if not pending_jobs:
+        if not pending-jobs:
             console.print("✅ No jobs pending review", style="bold green")
             return
         
         # Create rich table for display
         table = Table(title="Pending Jobs")
-        table.add_column("Job ID", style="cyan")
-        table.add_column("Agent", style="magenta")
-        table.add_column("Status", style="yellow")
-        table.add_column("Created", style="blue")
+        table.add-column("Job ID", style="cyan")
+        table.add-column("Agent", style="magenta")
+        table.add-column("Status", style="yellow")
+        table.add-column("Created", style="blue")
         
-        for job in pending_jobs:
-            table.add_row(
-                job.job_id[:12] + "...",  # Truncate for display
+        for job in pending-jobs:
+            table.add-row(
+                job.job-id[:12] + "...",  # Truncate for display
                 job.agent,
                 job.status,
-                job.created_at.strftime("%H:%M:%S")
+                job.created-at.strftime("%H:%M:%S")
             )
         
         console.print(table)
-        console.print("💡 Use [bold]factory review <job_id>[/bold] to examine job details")
+        console.print("💡 Use [bold]factory review <job-id>[/bold] to examine job details")
         
     except Exception as e:
         console.print(f"❌ Error fetching status: {e}", style="bold red")
@@ -174,7 +174,7 @@ def status():
 
 @app.command()
 def review(
-    job_id: str = typer.Argument(..., help="Job ID to review")
+    job-id: str = typer.Argument(..., help="Job ID to review")
 ):
     """
     Review the output of a specific job.
@@ -182,24 +182,24 @@ def review(
     Displays the agent's output in a formatted, readable way.
     """
     try:
-        job_data = job_store.get_job(job_id)
+        job-data = job-store.get-job(job-id)
         
-        if not job_data:
-            console.print(f"❌ Job {job_id} not found", style="bold red")
+        if not job-data:
+            console.print(f"❌ Job {job-id} not found", style="bold red")
             raise typer.Exit(1)
         
-        console.print(f"📋 Reviewing Job: [bold cyan]{job_id}[/bold cyan]")
-        console.print(f"🤖 Agent: [bold magenta]{job_data['agent']}[/bold magenta]")
-        console.print(f"📊 Status: [bold yellow]{job_data['status']}[/bold yellow]")
+        console.print(f"📋 Reviewing Job: [bold cyan]{job-id}[/bold cyan]")
+        console.print(f"🤖 Agent: [bold magenta]{job-data['agent']}[/bold magenta]")
+        console.print(f"📊 Status: [bold yellow]{job-data['status']}[/bold yellow]")
         
-        if job_data.get('output_payload'):
+        if job-data.get('output-payload'):
             console.print("\n📄 Agent Output:")
-            console.print(JSON(json.dumps(job_data['output_payload'], indent=2)))
+            console.print(JSON(json.dumps(job-data['output-payload'], indent=2)))
         else:
             console.print("⚠️ No output available yet", style="bold yellow")
         
-        console.print(f"\n✅ Use [bold green]factory approve {job_id}[/bold green] to continue")
-        console.print(f"❌ Use [bold red]factory reject {job_id} --feedback \"Your feedback\"[/bold red] to request changes")
+        console.print(f"\n✅ Use [bold green]factory approve {job-id}[/bold green] to continue")
+        console.print(f"❌ Use [bold red]factory reject {job-id} --feedback \"Your feedback\"[/bold red] to request changes")
         
     except Exception as e:
         console.print(f"❌ Error reviewing job: {e}", style="bold red")
@@ -207,7 +207,7 @@ def review(
 
 @app.command()
 def approve(
-    job_id: str = typer.Argument(..., help="Job ID to approve")
+    job-id: str = typer.Argument(..., help="Job ID to approve")
 ):
     """
     Approve a job and continue the workflow.
@@ -216,33 +216,33 @@ def approve(
     """
     try:
         # Get job details to determine next flow
-        job_data = job_store.get_job(job_id)
+        job-data = job-store.get-job(job-id)
         
-        if not job_data:
-            console.print(f"❌ Job {job_id} not found", style="bold red")
+        if not job-data:
+            console.print(f"❌ Job {job-id} not found", style="bold red")
             raise typer.Exit(1)
         
-        agent = job_data['agent']
-        console.print(f"✅ Approving {agent} job: [bold cyan]{job_id}[/bold cyan]")
+        agent = job-data['agent']
+        console.print(f"✅ Approving {agent} job: [bold cyan]{job-id}[/bold cyan]")
         
         # Approve the job in JobStore
-        approved_output = job_store.approve_job(job_id)
+        approved-output = job-store.approve-job(job-id)
         
-        if not approved_output:
+        if not approved-output:
             console.print("❌ Failed to approve job", style="bold red")
             raise typer.Exit(1)
         
         # Trigger next flow based on agent type
         if agent == "Director":
             console.print("🎯 Starting Tactician workflow...")
-            tactician_job_id = continue_generation_flow(job_id)
-            console.print(f"✅ Tactician task initiated. Job ID: [bold yellow]{tactician_job_id}[/bold yellow]")
+            tactician_job-id = continue_generation-flow(job-id)
+            console.print(f"✅ Tactician task initiated. Job ID: [bold yellow]{tactician_job-id}[/bold yellow]")
             
         elif agent == "Tactician":
             console.print("✍️ Starting final generation (Weaver + Canonist)...")
-            chapter_text = finalize_generation_flow(job_id)
+            chapter-text = finalize_generation-flow(job-id)
             console.print("🎉 Chapter generation complete!")
-            console.print(f"📊 Generated {len(chapter_text.split())} words")
+            console.print(f"📊 Generated {len(chapter-text.split())} words")
             
         else:
             console.print(f"✅ Job approved. No automatic next step for {agent}")
@@ -253,7 +253,7 @@ def approve(
 
 @app.command()
 def reject(
-    job_id: str = typer.Argument(..., help="Job ID to reject"),
+    job-id: str = typer.Argument(..., help="Job ID to reject"),
     feedback: str = typer.Option(..., "--feedback", "-f", help="Feedback message for the agent")
 ):
     """
@@ -262,11 +262,11 @@ def reject(
     Marks the job as rejected and provides feedback for the agent to improve output.
     """
     try:
-        console.print(f"❌ Rejecting job: [bold cyan]{job_id}[/bold cyan]")
+        console.print(f"❌ Rejecting job: [bold cyan]{job-id}[/bold cyan]")
         console.print(f"💬 Feedback: [italic]{feedback}[/italic]")
         
         # Update job as rejected with feedback
-        success = job_store.reject_job(job_id, feedback)
+        success = job-store.reject-job(job-id, feedback)
         
         if not success:
             console.print("❌ Failed to reject job", style="bold red")
@@ -290,11 +290,11 @@ def ingest():
         console.print("📥 Starting data ingestion...")
         
         # Run ingestion script using async
-        async def run_ingestion():
-            from scripts.ingest import ingest_bootstrap_data
-            await ingest_bootstrap_data()
+        async def run-ingestion():
+            from scripts.ingest import ingest_bootstrap-data
+            await ingest_bootstrap-data()
         
-        asyncio.run(run_ingestion())
+        asyncio.run(run-ingestion())
         
         console.print("✅ Data ingestion complete", style="bold green")
         
@@ -304,7 +304,7 @@ def ingest():
 
 # Add development/testing commands
 @app.command()
-def test_connection():
+def test-connection():
     """
     Test connections to Redis and Qdrant services.
     
@@ -315,14 +315,14 @@ def test_connection():
         
         # Test Redis connection
         try:
-            job_store.redis_client.ping()
+            job-store.redis-client.ping()
             console.print("✅ Redis connection: OK", style="bold green")
         except Exception as e:
             console.print(f"❌ Redis connection: FAILED - {e}", style="bold red")
         
         # Test Qdrant connection
         try:
-            qdrant_service = QdrantService()
+            qdrant-service = QdrantService()
             # Basic connection test - implement ping method if needed
             console.print("✅ Qdrant connection: OK", style="bold green")
         except Exception as e:
@@ -345,47 +345,47 @@ Usage:
     python factory.py --help
     python factory.py generate "Chapter seed text"
     python factory.py status
-    python factory.py review <job_id>
-    python factory.py approve <job_id>
+    python factory.py review <job-id>
+    python factory.py approve <job-id>
 """
 
 import typer
-from src.narrative_factory.cli.commands import app
+from src.narrative-factory.cli.commands import app
 
-if __name__ == "__main__":
+if __name_- == "__main_-":
     app()
 ```
 
 ### 3. Enhanced JobStore Methods
 
 ```python
-# Additional methods for src/narrative_factory/workflows/jobs.py
-def get_job(self, job_id: str) -> Optional[dict]:
+# Additional methods for src/narrative-factory/workflows/jobs.py
+def get-job(self, job-id: str) -> Optional[dict]:
     """Get job data by ID."""
-    job_data = self.redis_client.get(f"job:{job_id}")
-    if job_data:
-        return json.loads(job_data)
+    job-data = self.redis-client.get(f"job:{job-id}")
+    if job-data:
+        return json.loads(job-data)
     return None
 
-def reject_job(self, job_id: str, feedback: str) -> bool:
+def reject-job(self, job-id: str, feedback: str) -> bool:
     """Reject job with feedback."""
-    job_data = self.redis_client.get(f"job:{job_id}")
-    if job_data:
-        job = JobState.model_validate_json(job_data)
+    job-data = self.redis-client.get(f"job:{job-id}")
+    if job-data:
+        job = JobState.model_validate-json(job-data)
         job.status = "rejected"
-        job.feedback_history.append({
+        job.feedback-history.append({
             "timestamp": datetime.now().isoformat(),
             "feedback": feedback
         })
-        job.updated_at = datetime.now()
-        self.redis_client.set(f"job:{job_id}", job.model_dump_json())
+        job.updated-at = datetime.now()
+        self.redis-client.set(f"job:{job-id}", job.model_dump-json())
         return True
     return False
 ```
 
 ### List of tasks to be completed
 
-1. **CREATE** comprehensive `src/narrative_factory/cli/commands.py` with full command implementations
+1. **CREATE** comprehensive `src/narrative-factory/cli/commands.py` with full command implementations
 2. **IMPLEMENT** Rich console formatting for enhanced user experience with tables and colored output
 3. **CREATE** robust error handling and user feedback for all CLI operations
 4. **INTEGRATE** async support for Qdrant and Prefect operations within CLI commands
@@ -405,7 +405,7 @@ python factory.py review --help
 python factory.py approve --help
 python factory.py reject --help
 
-# Expected: Each command should display its specific help text, showing the required arguments (e.g., job_id).
+# Expected: Each command should display its specific help text, showing the required arguments (e.g., job-id).
 ```
 
 ### Level 2: CLI and JobStore Integration Test (Mocked)
@@ -413,42 +413,42 @@ python factory.py reject --help
 This test will invoke the CLI commands and verify they call the correct `JobStore` methods.
 
 ```python
-# In a new file: tests/test_cli.py
+# In a new file: tests/test-cli.py
 from typer.testing import CliRunner
-from narrative_factory.cli.commands import app
+from narrative-factory.cli.commands import app
 
 runner = CliRunner()
 
-def test_approve_command(mocker):
+def test_approve-command(mocker):
     """Tests that the approve CLI command calls the JobStore and a Prefect flow."""
     # Mock the JobStore service
-    mock_job_store = mocker.patch('narrative_factory.cli.commands.JobStore')
+    mock_job-store = mocker.patch('narrative-factory.cli.commands.JobStore')
     # Mock the Prefect flow that gets triggered
-    mock_continue_flow = mocker.patch('narrative_factory.cli.commands.continue_generation_flow')
+    mock_continue-flow = mocker.patch('narrative-factory.cli.commands.continue_generation-flow')
 
     result = runner.invoke(app, ["approve", "d-12345678"])
 
     # Assert the command ran successfully
-    assert result.exit_code == 0
+    assert result.exit-code == 0
     assert "approved and workflow is continuing" in result.stdout
 
     # Assert the JobStore was called correctly
-    mock_job_store.update_job_as_approved.assert_called_once_with("d-12345678")
+    mock_job-store.update_job_as-approved.assert_called_once-with("d-12345678")
     
     # Assert the next flow was triggered correctly
-    mock_continue_flow.assert_called_once_with("d-12345678")
+    mock_continue-flow.assert_called_once-with("d-12345678")
 ```
 
 ```bash
 # Run and iterate until passing:
-uv run pytest tests/test_cli.py -v
+uv run pytest tests/test-cli.py -v
 ```
 
 ---
 
 ## Path to Full Vision: The "Bridge" PRP
 
-This MVP is the foundational engine. The `NARRATIVE_FACTORY_PRP_v3.md` document outlines the ultimate goal of a full-stack web application. Once this CLI-based MVP is complete and validated, the next step will be to create a **new "Bridge" PRP** using the `prp_planning.md` template.
+This MVP is the foundational engine. The `NARRATIVE_FACTORY_PRP_v3.md` document outlines the ultimate goal of a full-stack web application. Once this CLI-based MVP is complete and validated, the next step will be to create a **new "Bridge" PRP** using the `prp-planning.md` template.
 
 This future PRP will not be written now, as it must be informed by the lessons learned during MVP development. However, its purpose will be to detail the following transition:
 

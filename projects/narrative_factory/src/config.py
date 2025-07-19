@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import Field, model_validator, validator
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Load environment variables from .env file
@@ -107,14 +107,16 @@ class ModelSettings(BaseSettings):
         description="API call timeout in seconds"
     )
 
-    @validator('gemini_api_key', pre=True, always=True)
+    @field_validator('gemini_api_key', mode='before')
+    @classmethod
     def validate_gemini_key(cls, v: Optional[str]) -> Optional[str]:
         """Validate Gemini API key format."""
         if v and not v.startswith('AIza'):
             logging.warning("Gemini API key should start with 'AIza'")
         return v
 
-    @validator('openai_api_key', pre=True, always=True)
+    @field_validator('openai_api_key', mode='before')
+    @classmethod
     def validate_openai_key(cls, v: Optional[str]) -> Optional[str]:
         """Validate OpenAI API key format."""
         if v and not v.startswith('sk-'):
@@ -125,9 +127,10 @@ class ModelSettings(BaseSettings):
         """Check if required API keys are present."""
         return bool(self.gemini_api_key or self.openai_api_key)
 
-    class Config:
-        env_prefix = "MODEL_"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_prefix="MODEL_",
+        case_sensitive=False
+    )
 
 
 class QdrantSettings(BaseSettings):
@@ -187,14 +190,16 @@ class QdrantSettings(BaseSettings):
             "chapter_summaries": self.story_so_far_collection,
         }
 
-    @validator('url')
+    @field_validator('url')
+    @classmethod
     def validate_url(cls, v: str) -> str:
         """Validate Qdrant URL format."""
         if not v.startswith(('http://', 'https://')):
             raise ValueError("URL must start with http:// or https://")
         return v
 
-    @validator('distance_metric')
+    @field_validator('distance_metric')
+    @classmethod
     def validate_distance_metric(cls, v: str) -> str:
         """Validate distance metric."""
         valid_metrics = ['cosine', 'dot', 'euclidean']
@@ -202,9 +207,10 @@ class QdrantSettings(BaseSettings):
             raise ValueError(f"Distance metric must be one of: {valid_metrics}")
         return v
 
-    class Config:
-        env_prefix = "QDRANT_"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_prefix="QDRANT_",
+        case_sensitive=False
+    )
 
 
 class AppSettings(BaseSettings):
@@ -300,9 +306,10 @@ class AppSettings(BaseSettings):
         """Check if running in development environment."""
         return self.environment == Environment.DEVELOPMENT
 
-    class Config:
-        env_prefix = "APP_"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_prefix="APP_",
+        case_sensitive=False
+    )
 
 
 class ConfigManager:

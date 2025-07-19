@@ -55,7 +55,7 @@ Build a semi-autonomous, genre-agnostic narrative generation engine with a web-b
 #### Advanced Memory System
 - **Primary Embedding**: Jina v4 with late chunking for contextual embeddings (8K token context).
 - **Contextual Enhancement**: LLM-powered chunk descriptions for critical materials.
-- **Hybrid Cost Strategy**: Late chunking for `world_bible`, contextual retrieval for `story_so_far`.
+- **Hybrid Cost Strategy**: Late chunking for `world-bible`, contextual retrieval for `story_so-far`.
 - **Smart Batching**: Rate-limit aware processing with cost optimization.
 
 ## 4. Success Criteria
@@ -136,7 +136,7 @@ Build a semi-autonomous, genre-agnostic narrative generation engine with a web-b
 
 **Jina v4 Embedding API**
 - Docs: https://jina.ai/api-dashboard/embedding
-- Key patterns: The core of our advanced memory system. We will use its `late_chunking` feature for cost-effective embedding of large lore documents.
+- Key patterns: The core of our advanced memory system. We will use its `late-chunking` feature for cost-effective embedding of large lore documents.
 
 **Qdrant - Advanced Filtering**
 - Docs: https://qdrant.tech/documentation/concepts/filtering/
@@ -149,35 +149,35 @@ Build a semi-autonomous, genre-agnostic narrative generation engine with a web-b
 **Enhanced Material Types**
 ```json
 {
-    "character_profile": {
-        "required_fields": ["id", "name", "role", "arc", "goals", "flaws", "voice_tone", "relationships"],
-        "optional_fields": ["faction_id", "secret_knowledge", "backstory", "physical_description"],
-        "collection": "world_bible",
-        "embedding_strategy": "late_chunking"
+    "character-profile": {
+        "required-fields": ["id", "name", "role", "arc", "goals", "flaws", "voice-tone", "relationships"],
+        "optional-fields": ["faction-id", "secret-knowledge", "backstory", "physical-description"],
+        "collection": "world-bible",
+        "embedding-strategy": "late-chunking"
     },
-    "style_guide": {
-        "required_fields": ["id", "genre", "tone", "voice_patterns", "example_passages", "pov_style"],
-        "optional_fields": ["dialogue_style", "description_density", "pacing_notes"],
-        "collection": "world_bible", 
-        "embedding_strategy": "late_chunking"
+    "style-guide": {
+        "required-fields": ["id", "genre", "tone", "voice-patterns", "example-passages", "pov-style"],
+        "optional-fields": ["dialogue-style", "description-density", "pacing-notes"],
+        "collection": "world-bible", 
+        "embedding-strategy": "late-chunking"
     },
-    "thematic_lexicon": {
-        "required_fields": ["id", "terms", "definitions", "usage_context", "emotional_weight"],
-        "optional_fields": ["synonyms", "antonyms", "genre_specific_usage"],
-        "collection": "world_bible",
-        "embedding_strategy": "contextual_retrieval"
+    "thematic-lexicon": {
+        "required-fields": ["id", "terms", "definitions", "usage-context", "emotional-weight"],
+        "optional-fields": ["synonyms", "antonyms", "genre_specific-usage"],
+        "collection": "world-bible",
+        "embedding-strategy": "contextual-retrieval"
     },
     "lodestone": {
-        "required_fields": ["id", "core_premise", "key_conflicts", "thematic_anchors", "genre"],
-        "optional_fields": ["target_audience", "content_warnings", "narrative_constraints"],
-        "collection": "world_bible",
-        "embedding_strategy": "contextual_retrieval"
+        "required-fields": ["id", "core-premise", "key-conflicts", "thematic-anchors", "genre"],
+        "optional-fields": ["target-audience", "content-warnings", "narrative-constraints"],
+        "collection": "world-bible",
+        "embedding-strategy": "contextual-retrieval"
     },
-    "lore_document": {
-        "required_fields": ["id", "title", "content", "category", "importance_level"],
-        "optional_fields": ["related_characters", "related_locations", "timeline_position"],
-        "collection": "world_bible",
-        "embedding_strategy": "late_chunking"
+    "lore-document": {
+        "required-fields": ["id", "title", "content", "category", "importance-level"],
+        "optional-fields": ["related-characters", "related-locations", "timeline-position"],
+        "collection": "world-bible",
+        "embedding-strategy": "late-chunking"
     }
 }
 ```
@@ -186,22 +186,22 @@ Build a semi-autonomous, genre-agnostic narrative generation engine with a web-b
 ```python
 # Material upload response
 class UploadResponse(BaseModel):
-    upload_id: UUID
+    upload-id: UUID
     status: Literal["processing", "completed", "failed"]
     classification: Optional[str] = None
     confidence: Optional[float] = None
-    embedding_cost: Optional[float] = None
-    processing_time: Optional[float] = None
-    validation_errors: List[str] = []
+    embedding-cost: Optional[float] = None
+    processing-time: Optional[float] = None
+    validation-errors: List[str] = []
 
 # Chapter generation response  
 class GenerationResponse(BaseModel):
-    chapter_id: UUID
+    chapter-id: UUID
     status: Literal["generating", "completed", "failed"]
     progress: Dict[str, str]
-    estimated_completion: datetime
-    word_count: int = 0
-    quality_metrics: Dict[str, Any] = {}
+    estimated-completion: datetime
+    word-count: int = 0
+    quality-metrics: Dict[str, Any] = {}
 ```
 
 ## 7. Implementation Blueprint
@@ -246,8 +246,8 @@ narrative-factory/
 - A FastAPI `Security` dependency will validate this key for all protected endpoints, providing a simple but effective security layer for a single-user application.
 
 **Advanced Embedding Patterns**
-- **Late Chunking (Jina v4):** For large, static documents (`lore_document`, `style_guide`), the entire text will be sent to the Jina API with `late_chunking: True`. This is the most cost-effective method for bulk data.
-- **Contextual Retrieval:** For critical, relationship-heavy content (`character_profile`, `thematic_lexicon`), we will use an LLM to generate a concise summary of each chunk *before* embedding. The summary and the chunk are then combined, creating a highly context-aware vector. This is more expensive and reserved for high-impact data.
+- **Late Chunking (Jina v4):** For large, static documents (`lore-document`, `style-guide`), the entire text will be sent to the Jina API with `late-chunking: True`. This is the most cost-effective method for bulk data.
+- **Contextual Retrieval:** For critical, relationship-heavy content (`character-profile`, `thematic-lexicon`), we will use an LLM to generate a concise summary of each chunk *before* embedding. The summary and the chunk are then combined, creating a highly context-aware vector. This is more expensive and reserved for high-impact data.
 
 **File Processing Pipeline**
 1. **Upload** → Validate file type, size, content.
@@ -261,16 +261,16 @@ narrative-factory/
 ### 7.3 Core Module & API Specifications
 
 **`embedder_v2.py` - Advanced Embedding Engine**
-- Must implement two distinct methods: `create_late_chunking_embedding` and `create_contextual_embedding` to handle the hybrid strategy.
+- Must implement two distinct methods: `create_late_chunking-embedding` and `create_contextual-embedding` to handle the hybrid strategy.
 
 **`classifier.py` - AI-Powered Content Classification**
-- Must use an LLM to analyze file content and return a predicted `material_type` and a confidence score.
+- Must use an LLM to analyze file content and return a predicted `material-type` and a confidence score.
 
 **API Endpoint: `POST /api/materials/upload`**
 - Must use the simplified API key security dependency.
-- Must accept a file, queue a background task with Celery, and return an `upload_id` for tracking.
+- Must accept a file, queue a background task with Celery, and return an `upload-id` for tracking.
 
-**WebSocket Endpoint: `WS /ws/upload-progress/{upload_id}`**
+**WebSocket Endpoint: `WS /ws/upload-progress/{upload-id}`**
 - The frontend will connect to this endpoint after an upload.
 - The Celery worker will publish progress updates (e.g., `{"stage": "classifying", "progress": 0.25}`) to a Redis channel, which the WebSocket handler will then forward to the client.
 
@@ -354,7 +354,7 @@ npm run test
 ### Level 2: Backend API & Logic Testing
 ```bash
 # Run all backend tests with Pytest
-pytest tests/ -v --cov=app
+uv run pytest tests/ -v --cov=app
 
 # Expected: All tests passing with >90% code coverage.
 # Test suite will specifically target:
@@ -389,13 +389,13 @@ docker-compose down
 # These are semi-automated scripts to validate the quality of the output.
 
 # Validate the hybrid embedding strategy against a golden dataset
-python scripts/validate_embeddings.py --cost-analysis
+python scripts/validate-embeddings.py --cost-analysis
 
 # Generate a 5-chapter arc and analyze for continuity and quality
-python scripts/validate_generation_quality.py --chapters 5
+python scripts/validate_generation-quality.py --chapters 5
 
 # Analyze API performance under simulated load
-python scripts/load_test.py --concurrent-users 5 --duration 60
+python scripts/load-test.py --concurrent-users 5 --duration 60
 
 # Expected: Scripts complete successfully and report metrics within acceptable thresholds
 # (e.g., continuity score > 0.95, p95 response time < 500ms).
@@ -521,22 +521,22 @@ instructor==0.4.0
 ```bash
 # .env.template
 # Frontend
-VITE_API_BASE_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000
+VITE_API_BASE-URL=http://localhost:8000
+VITE_WS-URL=ws://localhost:8000
 
 # Backend  
-API_SECRET_KEY=your_super_secret_key_here
-REDIS_URL=redis://localhost:6379
-QDRANT_URL=http://localhost:6333
+API_SECRET-KEY=your_super_secret_key-here
+REDIS-URL=redis://localhost:6379
+QDRANT-URL=http://localhost:6333
 
 # AI Services
-JINA_API_KEY=your_jina_api_key
-GEMINI_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key
+JINA_API-KEY=your_jina_api-key
+GEMINI_API-KEY=your_gemini_api-key
+OPENAI_API-KEY=your_openai_api-key
 
 # Processing
-CELERY_BROKER_URL=redis://localhost:6379
-CELERY_RESULT_BACKEND=redis://localhost:6379
+CELERY_BROKER-URL=redis://localhost:6379
+CELERY_RESULT-BACKEND=redis://localhost:6379
 ```
 
 ### Docker Compose Configuration
@@ -549,9 +549,9 @@ services:
     ports:
         - "3000:3000"
     environment:
-        - VITE_API_BASE_URL=http://backend:8000
-        - VITE_WS_URL=ws://backend:8000
-    depends_on:
+        - VITE_API_BASE-URL=http://backend:8000
+        - VITE_WS-URL=ws://backend:8000
+    depends-on:
         - backend
 
 
@@ -560,15 +560,15 @@ services:
     ports:
         - "8000:8000"
     environment:
-        - API_SECRET_KEY=${API_SECRET_KEY}
-        - REDIS_URL=redis://redis:6379
-        - QDRANT_URL=http://qdrant:6333
-        - JINA_API_KEY=${JINA_API_KEY}
-        - GEMINI_API_KEY=${GEMINI_API_KEY}
-        - OPENAI_API_KEY=${OPENAI_API_KEY}
-        - CELERY_BROKER_URL=redis://redis:6379/0
-        - CELERY_RESULT_BACKEND=redis://redis:6379/1
-    depends_on:
+        - API_SECRET-KEY=${API_SECRET-KEY}
+        - REDIS-URL=redis://redis:6379
+        - QDRANT-URL=http://qdrant:6333
+        - JINA_API-KEY=${JINA_API-KEY}
+        - GEMINI_API-KEY=${GEMINI_API-KEY}
+        - OPENAI_API-KEY=${OPENAI_API-KEY}
+        - CELERY_BROKER-URL=redis://redis:6379/0
+        - CELERY_RESULT-BACKEND=redis://redis:6379/1
+    depends-on:
         - redis
         - qdrant
 
@@ -577,15 +577,15 @@ services:
     build: ./backend
     command: celery -A app.workers.tasks worker --loglevel=info
     environment:
-        - API_SECRET_KEY=${API_SECRET_KEY}
-        - REDIS_URL=redis://redis:6379
-        - QDRANT_URL=http://qdrant:6333
-        - JINA_API_KEY=${JINA_API_KEY}
-        - GEMINI_API_KEY=${GEMINI_API_KEY}
-        - OPENAI_API_KEY=${OPENAI_API_KEY}
-        - CELERY_BROKER_URL=redis://redis:6379/0
-        - CELERY_RESULT_BACKEND=redis://redis:6379/1
-    depends_on:
+        - API_SECRET-KEY=${API_SECRET-KEY}
+        - REDIS-URL=redis://redis:6379
+        - QDRANT-URL=http://qdrant:6333
+        - JINA_API-KEY=${JINA_API-KEY}
+        - GEMINI_API-KEY=${GEMINI_API-KEY}
+        - OPENAI_API-KEY=${OPENAI_API-KEY}
+        - CELERY_BROKER-URL=redis://redis:6379/0
+        - CELERY_RESULT-BACKEND=redis://redis:6379/1
+    depends-on:
         - redis
         - qdrant
 

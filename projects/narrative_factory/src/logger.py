@@ -11,7 +11,7 @@ import logging.handlers
 import sys
 import traceback
 from contextvars import ContextVar
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Callable, Optional, Union
 
@@ -35,7 +35,7 @@ class StructuredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as structured JSON."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -235,11 +235,11 @@ def log_execution_time(logger_name: Optional[str] = None) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             logger = get_logger(logger_name or func.__module__)
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
 
             try:
                 result = func(*args, **kwargs)
-                execution_time = (datetime.utcnow() - start_time).total_seconds()
+                execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.info(
                     f"Function {func.__name__} completed",
                     extra={
@@ -250,7 +250,7 @@ def log_execution_time(logger_name: Optional[str] = None) -> Callable:
                 )
                 return result
             except Exception as e:
-                execution_time = (datetime.utcnow() - start_time).total_seconds()
+                execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.error(
                     f"Function {func.__name__} failed",
                     extra={
@@ -273,7 +273,7 @@ def log_api_call(logger_name: Optional[str] = None) -> Callable:
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             logger = get_logger(logger_name or func.__module__)
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
 
             logger.info(
                 f"Starting API call: {func.__name__}",
@@ -286,7 +286,7 @@ def log_api_call(logger_name: Optional[str] = None) -> Callable:
 
             try:
                 result = await func(*args, **kwargs)
-                execution_time = (datetime.utcnow() - start_time).total_seconds()
+                execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.info(
                     f"API call completed: {func.__name__}",
                     extra={
@@ -297,7 +297,7 @@ def log_api_call(logger_name: Optional[str] = None) -> Callable:
                 )
                 return result
             except Exception as e:
-                execution_time = (datetime.utcnow() - start_time).total_seconds()
+                execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.error(
                     f"API call failed: {func.__name__}",
                     extra={
@@ -313,7 +313,7 @@ def log_api_call(logger_name: Optional[str] = None) -> Callable:
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             logger = get_logger(logger_name or func.__module__)
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
 
             logger.info(
                 f"Starting API call: {func.__name__}",
@@ -326,7 +326,7 @@ def log_api_call(logger_name: Optional[str] = None) -> Callable:
 
             try:
                 result = func(*args, **kwargs)
-                execution_time = (datetime.utcnow() - start_time).total_seconds()
+                execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.info(
                     f"API call completed: {func.__name__}",
                     extra={
@@ -337,7 +337,7 @@ def log_api_call(logger_name: Optional[str] = None) -> Callable:
                 )
                 return result
             except Exception as e:
-                execution_time = (datetime.utcnow() - start_time).total_seconds()
+                execution_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.error(
                     f"API call failed: {func.__name__}",
                     extra={

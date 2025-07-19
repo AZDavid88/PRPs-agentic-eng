@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from src.exceptions import ValidationError as CustomValidationError
 from src.logger import get_logger
 from src.models import ChapterBlueprint, StrategicBrief
+from src.models.librarian_models import MaterialAnalysisRequest, MaterialAnalysisResponse
 
 
 logger = get_logger(__name__)
@@ -27,6 +28,9 @@ class MessageType(str, Enum):
     CHAPTER_BLUEPRINT = "chapter_blueprint"
     PROSE_CONTENT = "prose_content"
     VALIDATION_RESULT = "validation_result"
+    MATERIAL_ANALYSIS_REQUEST = "material_analysis_request"
+    MATERIAL_ANALYSIS_RESPONSE = "material_analysis_response"
+    LIBRARIAN_QUERY = "librarian_query"
     CONTEXT_REQUEST = "context_request"
     CONTEXT_RESPONSE = "context_response"
     ERROR_REPORT = "error_report"
@@ -75,7 +79,7 @@ class StrategicBriefMessage(AgentMessage):
     def __init__(self, strategic_brief: StrategicBrief, metadata: MessageMetadata, **kwargs):
         super().__init__(
             message_type=MessageType.STRATEGIC_BRIEF,
-            payload={"strategic_brief": strategic_brief.dict()},
+            payload={"strategic_brief": strategic_brief.model_dump()},
             metadata=metadata,
             strategic_brief=strategic_brief,
             **kwargs
@@ -90,7 +94,7 @@ class ChapterBlueprintMessage(AgentMessage):
     def __init__(self, chapter_blueprint: ChapterBlueprint, metadata: MessageMetadata, **kwargs):
         super().__init__(
             message_type=MessageType.CHAPTER_BLUEPRINT,
-            payload={"chapter_blueprint": chapter_blueprint.dict()},
+            payload={"chapter_blueprint": chapter_blueprint.model_dump()},
             metadata=metadata,
             chapter_blueprint=chapter_blueprint,
             **kwargs
@@ -123,6 +127,56 @@ class ValidationResultMessage(AgentMessage):
             payload={"validation_result": validation_result},
             metadata=metadata,
             validation_result=validation_result,
+            **kwargs
+        )
+
+
+class MaterialAnalysisRequestMessage(AgentMessage):
+    """Message containing material analysis request for LibrarianAgent."""
+    message_type: MessageType = MessageType.MATERIAL_ANALYSIS_REQUEST
+    analysis_request: MaterialAnalysisRequest
+
+    def __init__(self, analysis_request: MaterialAnalysisRequest, metadata: MessageMetadata, **kwargs):
+        super().__init__(
+            message_type=MessageType.MATERIAL_ANALYSIS_REQUEST,
+            payload={"analysis_request": analysis_request.model_dump()},
+            metadata=metadata,
+            analysis_request=analysis_request,
+            **kwargs
+        )
+
+
+class MaterialAnalysisResponseMessage(AgentMessage):
+    """Message containing material analysis response from LibrarianAgent."""
+    message_type: MessageType = MessageType.MATERIAL_ANALYSIS_RESPONSE
+    analysis_response: MaterialAnalysisResponse
+
+    def __init__(self, analysis_response: MaterialAnalysisResponse, metadata: MessageMetadata, **kwargs):
+        super().__init__(
+            message_type=MessageType.MATERIAL_ANALYSIS_RESPONSE,
+            payload={"analysis_response": analysis_response.model_dump()},
+            metadata=metadata,
+            analysis_response=analysis_response,
+            **kwargs
+        )
+
+
+class LibrarianQueryMessage(AgentMessage):
+    """Message for querying LibrarianAgent for material information."""
+    message_type: MessageType = MessageType.LIBRARIAN_QUERY
+    query_text: str
+    query_parameters: dict[str, Any]
+
+    def __init__(self, query_text: str, query_parameters: dict[str, Any], metadata: MessageMetadata, **kwargs):
+        super().__init__(
+            message_type=MessageType.LIBRARIAN_QUERY,
+            payload={
+                "query_text": query_text,
+                "query_parameters": query_parameters
+            },
+            metadata=metadata,
+            query_text=query_text,
+            query_parameters=query_parameters,
             **kwargs
         )
 
@@ -295,6 +349,18 @@ class AgentCommunicationService:
                 if not isinstance(message, ValidationResultMessage):
                     raise CustomValidationError("Validation result message must be ValidationResultMessage type")
 
+            elif message.message_type == MessageType.MATERIAL_ANALYSIS_REQUEST:
+                if not isinstance(message, MaterialAnalysisRequestMessage):
+                    raise CustomValidationError("Material analysis request message must be MaterialAnalysisRequestMessage type")
+
+            elif message.message_type == MessageType.MATERIAL_ANALYSIS_RESPONSE:
+                if not isinstance(message, MaterialAnalysisResponseMessage):
+                    raise CustomValidationError("Material analysis response message must be MaterialAnalysisResponseMessage type")
+
+            elif message.message_type == MessageType.LIBRARIAN_QUERY:
+                if not isinstance(message, LibrarianQueryMessage):
+                    raise CustomValidationError("Librarian query message must be LibrarianQueryMessage type")
+
             logger.debug(f"Message validation passed: {message.metadata.message_id}")
 
         except Exception as e:
@@ -452,6 +518,71 @@ class AgentCommunicationService:
             error_type=error_type,
             error_message=error_message,
             error_details=error_details,
+            metadata=metadata
+        )
+
+    async def create_material_analysis_request_message(
+        self,
+        analysis_request: MaterialAnalysisRequest,
+        sender_id: str,
+        recipient_id: str,
+        session_id: Optional[str] = None,
+        correlation_id: Optional[str] = None
+    ) -> MaterialAnalysisRequestMessage:
+        """Create a material analysis request message."""
+        metadata = MessageMetadata(
+            sender_id=sender_id,
+            recipient_id=recipient_id,
+            session_id=session_id,
+            correlation_id=correlation_id
+        )
+
+        return MaterialAnalysisRequestMessage(
+            analysis_request=analysis_request,
+            metadata=metadata
+        )
+
+    async def create_material_analysis_response_message(
+        self,
+        analysis_response: MaterialAnalysisResponse,
+        sender_id: str,
+        recipient_id: str,
+        session_id: Optional[str] = None,
+        correlation_id: Optional[str] = None
+    ) -> MaterialAnalysisResponseMessage:
+        """Create a material analysis response message."""
+        metadata = MessageMetadata(
+            sender_id=sender_id,
+            recipient_id=recipient_id,
+            session_id=session_id,
+            correlation_id=correlation_id
+        )
+
+        return MaterialAnalysisResponseMessage(
+            analysis_response=analysis_response,
+            metadata=metadata
+        )
+
+    async def create_librarian_query_message(
+        self,
+        query_text: str,
+        query_parameters: dict[str, Any],
+        sender_id: str,
+        recipient_id: str,
+        session_id: Optional[str] = None,
+        correlation_id: Optional[str] = None
+    ) -> LibrarianQueryMessage:
+        """Create a librarian query message."""
+        metadata = MessageMetadata(
+            sender_id=sender_id,
+            recipient_id=recipient_id,
+            session_id=session_id,
+            correlation_id=correlation_id
+        )
+
+        return LibrarianQueryMessage(
+            query_text=query_text,
+            query_parameters=query_parameters,
             metadata=metadata
         )
 

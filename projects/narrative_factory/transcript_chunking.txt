@@ -1,0 +1,774 @@
+ 
+if you've ever built a rag agent before 
+you'll have encountered situations where 
+the agent can't answer questions 
+accurately or it hallucinates an answer 
+this is all because of the lost context 
+problem and in today's video I'm going 
+to show you what this problem is and two 
+new techniques that you can use to get 
+around it to improve your retrieval 
+accuracy and reduce hallucinations the 
+best way to explain this problem is 
+through an example so here we have a 
+document on the city of Berlin and this 
+is a Wikipedia article in a standard rag 
+system we would need to chunk this 
+document in other words we split it up 
+into segments so if we look on the right 
+hand side then if we were breaking down 
+this document per sentence so a chunk 
+equals a sentence then we would end up 
+with these three chunks now in reality 
+you wouldn't necessarily chunk per 
+sentence but this is good just to 
+demonstrate this problem the first chunk 
+speaks to Berlin being the capital of 
+Germany the second refers to its 
+population and the third sentence talk 
+to how it's one of the states of Germany 
+only the first chunk actually mentions 
+the word Berlin and as you can see 
+highlighted there in the second sentence 
+Berlin is referred to as its and in the 
+third sentence it's the city so clearly 
+for the second and third chunk to make 
+sense it needs to have the context of 
+the first chunk it needs to understand 
+that the city is referring to Berlin and 
+its is referring to Berlin so 
+unfortunately that's not how standard 
+rag works these three chunks would be 
+sent independently into an embedding 
+model to create vectors which would then 
+be stored in a vector store and because 
+they're sent in independently they're in 
+complete isolation of each other and 
+they've lost the context of the 
+paragraph and of the document and the 
+real issue then is if you were to query 
+this vector store with the word Berlin 
+this first chunk would most likely 
+return a very high score because Berlin 
+is specifically mentioned but Berlin's 
+not mentioned anywhere in the second 
+chunk here so you could get a very low 
+score and the same for the third and 
+this is a lot of the reason why you 
+might not be getting complete and 
+accurate answers from your RAG system 
+cuz a lot of the important information 
+is just not being retrieved and worse 
+still it can result in hallucinations 
+because there may be unrelated chunks 
+that actually have a higher score that 
+are then returned and then the LLM will 
+faithfully generate a response of what 
+is effectively unrelated information 
+that was retrieved there are lots of 
+ways to mitigate this problem a number 
+of which I've already covered on this 
+channel and in this video I'll be going 
+through two new techniques you can use 
+in N8 namely contextual retrieval and 
+late chunking if you don't know what RAG 
+is then I recommend checking out some of 
+my other videos where I dive into the 
+basics in a bit more detail but in a 
+nutshell when the AI is asked a question 
+we retrieve the most relevant pieces of 
+information from your knowledge base and 
+feed those to the AI so it can generate 
+a more accurate answer that way the LLM 
+isn't limited to what it saw in its 
+training data and instead it can pull 
+company specific up-to-date information 
+on the fly so before we jump into our 
+first technique which is late chunking 
+let's ask the question what is chunking 
+and as I mentioned earlier chunking is 
+where we split a document into segments 
+so that it can be processed by the RAG 
+system so here I have a really long PDF 
+document and if we put this through a 
+chunking algorithm you can see the 
+color-coded segments that have been 
+created and then there are different 
+chunking strategies that you can use 
+that'll define the boundaries of these 
+chunks you can increase or decrease the 
+number of tokens or characters you can 
+have overlap for example so there is a 
+lot of ways that you can chunk 
+unfortunately there isn't a 
+one-sizefits-all strategy it does depend 
+on the type of documents that you're 
+bringing in late last year Gina AI 
+ 
+published a new approach to chunking 
+which is called late chunking and that's 
+to have contextual chunk embeddings 
+using long context embedding models and 
+I've taken this strategy and brought it 
+into N8N and built out a rag pipeline 
+where we can ingest documents and embed 
+and upsert them using this late chunking 
+technique but before going through the 
+workflow on N8N let's talk through how 
+late chunking actually works so with the 
+standard rag approach we're essentially 
+chunking first and then we're creating 
+the embeddings so if we take that Berlin 
+example that we looked at earlier that's 
+this document let's say let's just say 
+that's the paragraph we create the 
+chunks off that which are the sentences 
+and then we push those sentences into an 
+embedding model to generate vector 
+embeddings and then those vectors are 
+stored in a vector database where they 
+can be then queried in the future to 
+retrieve similar results that's your 
+standard rag approach of chunking first 
+and then embedding losing the context 
+with the late chunking approach we're 
+actually embedding first and then we're 
+chunking and all of this is made 
+possible thanks to long context window 
+embedding models so similar to how the 
+latest LLMs have very long context 
+windows lamb 4 for example has 10 
+million tokens the context window length 
+of embedding models is also starting to 
+increase so within this approach then 
+you would load up your entire document 
+or as much of the document that can fit 
+in the long context window as possible 
+into an embedding model and then every 
+token within that document will have a 
+vector embedding created for it but that 
+all happens at the same time so it's all 
+within the context of the document and 
+from there then you use your chunking 
+strategy of choice be it chunking into 
+sentences into paragraphs fixed length 
+recursive character splitting at which 
+point you have segmented your document 
+into bite-sized chunks and then instead 
+of sending those chunks into the 
+embedding model we're able to identify 
+which vectors that were previously 
+created actually are associated with 
+that text so for the first paragraph 
+it's these vectors second paragraph it's 
+those vectors and because all of those 
+embeddings or those vectors were created 
+at the same time with the entire context 
+of the document you're no longer losing 
+the links in between the sentences and 
+the paragraphs so back to the Berlin 
+example even though Berlin is not 
+mentioned in that second or third 
+sentence the actual tokens will reflect 
+that Berlin was in context and from 
+there there's a technique used called 
+pooling or aggregating where those 
+vectors are averaged out to represent 
+the chunk and then they're stored in the 
+vector database so you still have a 
+single embedding to represent the chunk 
+the same as standard rag except because 
+these are pulled across these tokens 
+they more accurately reflect the text as 
+I mentioned late chunking is only 
+possible thanks to long context 
+embedding models and if we look at the 
+embedding leaderboard on hugging face 
+you can see the max tokens that these 
+embedding models actually support so the 
+likes of Mistl and Quinn's embedding 
+models can support up to 32,000 tokens 
+that's a good deal shy of the millions 
+of tokens that LLMs can support but it 
+still means you can fit a lot of text 
+into context when actually creating 
+those tokens in my NAT workflow I'm 
+going to be using Gina's embedding V3 
+model which you can see there and that 
+supports a maximum of just under 8,000 
+tokens so onto the workflow i'll be 
+testing out both late chunking and 
+contextual retrieval against a simple 
+rag setup that I have here so here I'm 
+fetching a document from Google Drive 
+and then I'm using a recursive character 
+text splitter and OpenAI's text 
+embedding three small model to generate 
+embeddings and then all of those are 
+upserted to the quadrant vector store so 
+it was pretty fast and you can see the 
+vector store here with 645 points for 
+that 170 page document to implement late 
+chunking in N8N requires a little bit of 
+manual work the problem here is that you 
+can't add custom embedding models so if 
+you look at the list on the right hand 
+side here Gina AI is not one of them and 
+also it's not possible to pass custom 
+parameters to embedding models with late 
+chunking you need to pass a flag to 
+enable that which isn't possible with a 
+lot of these if you'd like to get access 
+to these advanced rag workflows then 
+check out the link in the description to 
+our community the AI automators what 
+we're doing here is we're fetching a 
+file from a Google Drive folder this is 
+the same file I use in a lot of my RAG 
+videos it's the Formula 1 technical 
+regulations it's 180 pages long and 
+there's a lot of text to be processed 
+from here I'm looping through the files 
+because this is being triggered based 
+off new files being added to the drive 
+folder i'm then downloading that file so 
+it's accessible by N8N and then 
+depending on the type of file I'm 
+extracting the text so if it's a PDF I'm 
+using the extract from PDF node which is 
+essentially picking up the binary data 
+from the previous node where I 
+downloaded it google Doc for example 
+it'll come down this track and convert 
+it to markdown then I need to check the 
+size of the text so what I'm saying here 
+is if the text length is greater than 
+30,000 characters then we need to come 
+up this route and just create a quick 
+summary of the document so the rationale 
+here is we can't actually load up all 
+170 pages into this embedding model 
+while it's a long context embedding 
+model it's not that long so we do need 
+to split this document so if we split 
+this into 10 segments for example I want 
+to index a quick summary of the document 
+in each segment so that it actually has 
+the context of what the entire document 
+is about so that's what's happening here 
+then that file splitting occurs all of 
+this was generated by chat GPT but 
+essentially what we're doing here is we 
+have a split text into chunks function 
+and then we're just creating chunks of 
+the main document that are 28,000 
+characters long which equates to around 
+7 or 8,000 tokens which is the max 
+tokens of the model itself and then from 
+there we're looping through these really 
+large chunks and we're carrying out a 
+more granular chunking so if we click 
+into this we're aiming for a chunk size 
+of a thousand characters with a chunk 
+overlap or a sliding window of 200 
+characters and we want the overlap 
+boundary to be on a word so it's not 
+cutting off words and we have various 
+separators like new lines that it can 
+actually be triggered off and then 
+there's various functions for getting 
+the overlap boundary and then the actual 
+recursive splitting function so the 
+reason this is all JavaScript is that 
+Nadn does have chunking functionality 
+but it's embedded in their vector stores 
+they're not actually standalone modules 
+if you type in split here you can see 
+there are text splitters but they're all 
+sub nodes of the vector stores 
+themselves you can't have them inline in 
+your flows like I need here and the 
+reason I'm not using the native vector 
+store in N8N is that it currently 
+doesn't support this type of late 
+chunking so I actually have to build it 
+out manually again though all of this 
+code was generated by chat GBT and just 
+a back and forth just to get it working 
+from there then we aggregate all of 
+those granular chunks into a list as you 
+see here and then we have another code 
+node which adds that document summary if 
+the entire document doesn't fit into the 
+embedding models context window so 
+that's what's happening here from there 
+then the list of chunks that we created 
+are sent in in a single shot to the 
+embedding model we're hitting the 
+embedding URL and we're passing this 
+body where we're selecting the model 
+that we want to use we're indicating 
+that late chunking should be enabled on 
+this we have truncate set to true just 
+in case we've strayed past the actual 
+limitation of the model itself task is 
+set to retrieval.passage which is 
+recommended in Gina's embedding 
+documentation you can see the various 
+options here for downstream tasks and if 
+it's a rag style implementation they 
+recommend using retrieval.pass when 
+indexing and retrieval.query query when 
+actually inferring and then all of the 
+granular chunks are passed in as the 
+input and are embedded at the same time 
+we're using a quadrant vector store here 
+so we then need to upsert all of those 
+vectors into our collection and quadrant 
+so I'm simply just creating a body here 
+where I generate an ID and output a data 
+structure that the quadrant API requires 
+again chatbt generated a lot of that and 
+then I upsert it to quadrant so I'm 
+hitting my collection which is this one 
+and then I'm just sending in that body 
+that I created in the previous node okay 
+so let's save it and let's test it out 
+and what I'll do is I'll just delete the 
+quadrant collection that I have and I'll 
+create a fresh one so this is our 
+collection there's no points present 
+okay and let's test workflow so we've 
+downloaded the file extracted the text 
+from it then go to summarize the 
+document and from here then we're now 
+looping through those large chunks we're 
+creating the more granular chunks 
+generating the embeddings with GINA and 
+then upsert into Quadrant and if we 
+refresh here we can now see all of the 
+various vectors so this clearly would 
+have been a lot easier if N supported 
+custom embedding models with their 
+vector stores that's just not possible 
+at the moment so that's finished now if 
+we jump into the generate embeddings 
+with Gina and if we look at any of these 
+runs these large chunks in the body you 
+can see that we have passed all of the 
+chunks in a single go to that endpoint 
+and then in the response we're getting 
+data and if we close that we can see 
+that there are 28 items so we passed in 
+28 chunks we're getting back 28 vectors 
+and that's then what's essentially 
+upserted to quadrant okay so let's test 
+it out so let's ask the question and do 
+the arrow parts on an F1 car have to 
+remain still okay so that's gone to the 
+vector store and we have a response 
+which looks accurate on the face of it 
+i've had to manually build out the fetch 
+from vector store because NN doesn't 
+support custom embedding models but when 
+executed by the agent it's just hitting 
+these two endpoints so you can see the 
+query was here which was then sent into 
+Gina because we need to generate the 
+vectors for the query so we can find 
+similar results so that's what we got 
+back and then we queried quadrant which 
+has returned the top 10 results for that 
+query we have all of the various scores 
+along with the payload of the text that 
+can be then sent back to the agent to 
+generate the response now if we compare 
+that to our simple rag setup that I have 
+here if I ask the same question and yeah 
+it's a similar enough result let's try 
+with another question so what parts make 
+up the engine's turbo system it's broken 
+down five key parts which is reflected 
+in the chunks that we are getting back 
+we are looking for the top 10 results 
+that could be increased we could have 
+re-ranking in place so there are ways to 
+improve this but if I just ask that's 
+the standard rag interface and let's see 
+the quality of answer we're getting back 
+it's a less fleshed out answer it's only 
+talking to three of the components so it 
+possibly isn't retrieving as wide an 
+array of chunks as was returned by the 
+late chunking process and I think that's 
+the thing about evaluating these 
+techniques versus a standard rag 
+inference you do need to have your own 
+evaluation framework and understand what 
+good looks like and then you need to 
+compare it against different techniques 
+to see which one actually scores the 
+highest for your actual use case within 
+the documentation for this approach on 
+GINA AI they have carried out some 
+quantitative evaluations based off the 
+BEIR benchmarks and interestingly what 
+they found is that the relative 
+improvement of retrieval results 
+increases dramatically the longer the 
+document is and I think that makes sense 
+because the longer the document the more 
+context there is to lose so next up is 
+ 
+contextual retrieval with context 
+caching this one was introduced by 
+Entropic at the end of last year and 
+it's a really interesting idea because 
+it leverages the long context window 
+length of large language models instead 
+of embedding models to actually provide 
+context to each of the chunks now that 
+might sound a bit confusing so let's go 
+through it here in a bit more detail so 
+as I mentioned before with the standard 
+rag approach we take a document split it 
+into chunks send it into an embedding 
+model to create vectors independently 
+and then that's all stored in a vector 
+store so with contextual retrieval it's 
+a bit different so you take your 
+document and then you split it into 
+chunks but instead of sending it into an 
+embedding model you send it into an LLM 
+and you also send in the original 
+document what you're asking the LLM to 
+do is to analyze the chunk in the 
+context of the document and provide a 
+little descriptive blurb on how that 
+chunk fits into the document so that 
+gives you back a one-s sentence 
+description and from there then you add 
+that descriptive blurb with the chunk 
+and you send that into the embedding 
+model which produces the vectors from 
+there then you can save that to the 
+vector database and because it has that 
+one sentence description you're not 
+losing the context if we take the Berlin 
+example again with that second chunk the 
+descriptive blurb could say this chunk 
+is in reference to Berlin and then it 
+says its population is X so with the 
+expansion of context window lengths for 
+LLMs I think this is a hugely powerful 
+approach the main issues we're going to 
+have with this though is the time it 
+takes to ingest documents which you'll 
+see in a few minutes but then also the 
+cost because if this document is a 
+million tokens long then you'll be 
+sending that large document in for every 
+single chunk and this is where prompt 
+caching kicks in where you can 
+dramatically reduce the cost of sending 
+in that large document each time so 
+let's run through the workflow so it's 
+the same again we're fetching the large 
+PDF document getting the file extracting 
+the text and we get to this point here 
+so from here we need to estimate the 
+token length again it's just simple 
+JavaScript and it's a rough number that 
+we're getting but the reason is we're 
+going to be using Gemini 1.5 flash for 
+this so even though Antropic actually 
+released this technique you don't have 
+to use Claude Sonnet for example you can 
+use any LLM that has context caching so 
+I'll be using Gemini and within Gemini's 
+system files need to be larger than 
+32,000 tokens to actually cach them so 
+that's why I'm actually estimating the 
+token length here and then if it's large 
+enough to cache so I'm saying if it's 
+greater than 35,000 tokens give me a 
+little bit of wiggle room then we come 
+up here we're encoding the file it needs 
+to be encoded into base 64 and then we 
+send it for context caching so that's 
+this node here we're hitting the cache 
+contents endpoint and then with the 
+credentials we're sending in this body 
+where we pass the entire file encoded in 
+B 64 here and interestingly you also 
+pass in the system instruction so here 
+I'm just saying you are an F1 expert and 
+for these cached files in Gemini servers 
+you can also pass in a time to live so 
+here I'm saying it's 3600 seconds which 
+is 1 hour and you don't really need this 
+to be too long it just needs to be long 
+enough for you to actually get the 
+entire document ingested in the first 
+place so from here then we have another 
+custom chunking node again for the 
+reason that there's no native text 
+splitters in N8N outside of the sub 
+nodes and what we're looking for here is 
+chunks of a,000 characters long with a 
+sliding window of 200 characters and 
+then this brings us down to this looping 
+section here so initially I didn't 
+actually have a loop i just ran it all 
+through and I quickly hit rate limits 
+within the LLM because here if you don't 
+use a loop we have 600 odd chunks so 
+it's going to hit the Gemini endpoint 
+600 times in really quick succession and 
+you're going to get rejected at some 
+point so instead I'm using the loop over 
+items function in N8 and I've set a 
+batch size to 10 so we're going to hit 
+it 10 times in quick succession and then 
+allow it time to breathe and then hit it 
+10 times again and that's what's 
+happening here so here we're enhancing 
+the chunk we have created a prompt so 
+you have the document within the context 
+cache please give a short succinct 
+context to situate this chunk within the 
+overall document for the purpose of 
+improving search retrieval of the chunk 
+answer only with the succinct context 
+and nothing else so this text came 
+straight from Antropics paper and it's 
+listed on this document and I'll leave a 
+link for this in the description below 
+that's what you see here within this 
+prompt I'm actually passing it the 
+cached content ID because we've just 
+cached the file on Gemini servers we've 
+got back an ID we need to then reference 
+that ID when we're actually generating 
+this descriptive blurb so that's all 
+there so then we hit Gemini 1.5 flash 
+which is really cheap and has a long 
+context window so it should be able to 
+take the entire document that we 
+previously cached and we're passing in 
+that prompt and from there then we have 
+our descriptive blurb and then we just 
+simply create the chunk so it's what we 
+get back from Gemini 1.5 flash and then 
+it's dash the chunk at this point now we 
+have the chunk that we can then upsert 
+to our quadrant vector store and then 
+we're using OpenAI's text embedding 
+model here you do need to set a text 
+splitter it's already split it's already 
+chunked so I've just set this to 100,000 
+as a chunk size just so that it doesn't 
+actually chunk again and then that's it 
+that's going to upsert the 10 chunks and 
+then it go back through the loop and go 
+again and again and again so now let's 
+run it and see it in action so we'll 
+delete out our collection on quadrant 
+and we'll create a fresh one so there we 
+have it zero points okay and let's run 
+it so it's estimated the token length it 
+sent the file for caching and if we dive 
+in here you can see that's the actual ID 
+so we're getting the cache contents ID 
+then we've created the chunks so 612 
+chunks based off this kind of custom 
+function and you'll see the chunks don't 
+currently have any context yet so we 
+then dive into the loop and we loop with 
+that batch size of 10 we're creating our 
+prompt and then we call Gemini with 
+caching then this is an example of a 
+response we're getting this chunk is 
+from the introduction section of the 
+2025 Formula 1 guidelines and I think 
+that's why this approach is so cool the 
+chunk starts with this chunk defines the 
+CC plane within the context of the 
+regulations or this chunk describes the 
+required datam points for F1 cars so you 
+really are getting the context of the 
+chunk which should definitely reduce 
+hallucinations when you're actually 
+generating responses off the back of 
+this so it's a really cool approach I 
+think and interestingly I have just hit 
+a rate limit even with this batch size 
+of 10 as you can see there services 
+receiving too many requests from you so 
+I'm on tier one 2,000 requests a minute 
+so I'm definitely not hitting that i 
+think the tokens per minute is possibly 
+what I'm hitting because it must be 
+including cache tokens in that so I'll 
+reduce this to a batch size of five 
+let's say and let's start it again so 
+you will have to play around with the 
+actual batch sizes and the rate limits 
+because you are literally calling the 
+LLM for every single chunk so the more 
+documents you have the heavier this is 
+going to be and there is clearly a cost 
+associated with this as well from 
+Antropics paper they did carry out some 
+quantitative benchmarks and they did see 
+that the top 20 chunk retrieval failure 
+rate was reduced by 35% and if that was 
+combined then with a reranking model so 
+they use cohhere in this example they 
+actually reduce the failure rate by 67% 
+so clearly while it's a more expensive 
+approach it should definitely result in 
+higher quality embeddings it is the 
+tokens per minute that I'm actually 
+hitting here the quota value is 4 
+million and if you look at the actual 
+document it is 133,000 tokens and from 
+looking at Gemini's documentation around 
+context caching standard rate limits 
+apply and token limits include cache 
+tokens so I've updated this call to 
+retry on failure and I'll set it as 15 
+seconds in between a failure that way it 
+should be able to get past that 4 
+million tokens per minute constraint 
+okay so that's running again and even 
+with the retry setup I've still hit a 
+throttling issue and if I look at Google 
+Cloud's console here you can see where 
+I'm hitting the limit on the number of 
+tokens per minute so I'll need to dial 
+this back a little bit just to stop it 
+redlinining as you can see there so I 
+think probably 25 chunks a minute will 
+get me under the 4 million so I'll 
+change this batch size to 25 and then 
+I'm actually just going to put in a 
+weight i see what the problem is you 
+can't actually set a wait between tries 
+of longer than 5 seconds so here I'm 
+setting it as 15 seconds if I save and 
+then if I double click it again so 
+that's why I'm hitting these errors i 
+can't get past 5 seconds there so I can 
+increase the max tries can you leave 
+that at 10 and you can't go past five on 
+the max tries either so yeah we're 
+definitely going to need a weight 
+facility I think i'll set this at 30 
+seconds and see do I hit these 
+throttling errors again okay so I've 
+sent in 25 chunks which should be around 
+3 and 1/2 million tokens including 
+what's in context cache and send it in 
+the next batch so I think we might be on 
+track with this approach cuz essentially 
+these nodes are taking about 30 seconds 
+and then we're waiting for another 30 
+seconds there yeah that's ideal we're 
+holding steady at the 3.3 million tokens 
+mark so that should succeed now based 
+off that new technique so you would need 
+to play around with that to keep it 
+under the rate limits of whatever model 
+provider that you're using this thing is 
+taking so long I've left it running and 
+got myself a cup of coffee so this is 
+clearly not scalable if you have a lot 
+of documents to process we're keeping 
+well under the limits here but Gemini 
+shouldn't include cache contents in 
+their actual token allocation it's 
+ridiculous you can see on the right hand 
+side that the vast majority of tokens 
+being processed here are cached so from 
+looking at the numbers we're going to 
+chew through around 69 million tokens on 
+Gemini the vast vast vast majority of 
+them are cached which is significantly 
+cheaper than if they weren't cached and 
+so the total cost here will be around 
+$130 to generate these chunk 
+descriptions that we use to enhance the 
+chunks so whether that's good value or 
+not I think probably depends on your use 
+case if you only have a few documents 
+and you want really accurate retrieval 
+for let's say a chatbot that might be 
+fine whereas if you have millions of 
+documents it's going to be way too 
+expensive and it'll take forever to 
+actually process it with the late 
+chunking approach to use Gina AI's 
+embedding model I needed to sign up to 
+their 1 billion token pricing plan which 
+cost $20 a month but with that you get 
+access to all of Gina's products and we 
+use their deep search and their reader 
+quite a lot in our automations but of 
+course there are other long context 
+embedding models that you can use such 
+as Mistl or Quinn i'll leave a link for 
+the leaderboard in the description below 
+as well and we're done 612 chunks 
+processed and all upserted to the 
+quadrant vector store it took 27 minutes 
+which is incredibly long for a single 
+PDF albeit a long PDF and we can see our 
+612 points in our collection and as I 
+mentioned the the chunk descriptions are 
+brilliant and this is a perfect example 
+where like there's real kind of like 
+technical details in this chunk with 
+formulas and just kind of random numbers 
+and then the description here is super 
+helpful in actually grounding all of 
+this kind of technical data in the 
+actual context of the the section in the 
+document so let's test it out so we ask 
+our question about do arrow parts on an 
+F1 car have to stay still and that 
+actually looks like a better answer than 
+the last two we're still only returning 
+the top 10 results but there does seem 
+to be a little bit more detail in that 
+let's try this question what parts make 
+up the engine's turbo system and that is 
+definitely more thorough than the last 
+two as well we're getting seven 
+different elements and from looking at 
+the chunks that are returned I think 
+it's definitely picking up elements of 
+what's in these descriptions because 
+sometimes in the description it gives a 
+list of elements that are actually being 
+discussed in that section of the 
+document really interesting if you'd 
+like to get access to these workflows so 
+that you can test them out in your own 
+systems then check out the link in the 
+description to our community the AI 
+Automators where you can join hundreds 
+of fellow automators all looking to 
+leverage AI to automate their businesses 
+not only will you get access to all of 
+our templates and workflows but we have 
+a packed schedule of events where you 
+can join myself and Allan on technical 
+calls we actually work through 
+automations that members are working on 
+in real time and as well as some pretty 
+advanced NAND workflows we also have an 
+NN master class to really build up your 
+core skills check out the link below 
+we'd love to see you here thanks for 
+watching and I'll see you in the next 

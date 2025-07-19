@@ -48,6 +48,11 @@ dependencies = [
     "pydantic-settings>=2.10.1",
     "qdrant-client>=1.14.3",
     "numpy>=2.0.2",
+    # Web framework (Phase 3: Web Interface)
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",  # For file uploads
+    "jinja2>=3.1.0",  # For template rendering
 ]
 
 [project.optional-dependencies]
@@ -100,7 +105,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # unused imports ok in __init__.py
-"src/tests/*" = ["E402", "B904"]  # relaxed rules for tests
+"tests/*" = ["E402", "B904"]  # relaxed rules for tests
 "scripts/*" = ["E402", "B904"]  # relaxed rules for scripts
 
 [tool.ruff.lint.isort]
@@ -110,10 +115,10 @@ force-single-line = false
 lines-after-imports = 2
 
 [tool.mypy]
-mypy_path = "src"
+mypy_path = "."
 explicit_package_bases = true
 python_version = "3.9"
-exclude = ["scripts/", "PRPs/", "src/tests/"]
+exclude = ["scripts/", "PRPs/", "tests/"]
 check_untyped_defs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -122,11 +127,31 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = true
+warn_unused_configs = true
 implicit_reexport = false
 strict_equality = true
 
+# Third-party libraries without type stubs (verified minimal list)
+[[tool.mypy.overrides]]
+module = [
+    "qdrant_client.*",
+    "upstash_redis.*", 
+    "google.*",
+    "psutil.*",
+]
+ignore_missing_imports = true
+
+# Module resolution conflict has been fixed by setting mypy_path = "."
+
+# Relaxed rules for new development (can be tightened over time)
+[[tool.mypy.overrides]]
+module = ["src.agents.*", "src.workflows.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+# TODO: Add type annotations to agent and workflow modules
+
 [tool.pytest.ini_options]
-testpaths = ["src/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

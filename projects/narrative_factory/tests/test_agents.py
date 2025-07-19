@@ -1,6 +1,6 @@
 """
 Unit tests for agent personas and Pydantic model validation.
-Tests based on PRP_MVP_02_AGENT_CORE.md requirements.
+Tests based on PRP_MVP_02_AGENT_CORE.md requirements (archived in PRPs/archived/mvp/).
 """
 
 import json

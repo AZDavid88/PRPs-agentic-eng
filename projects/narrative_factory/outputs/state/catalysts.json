@@ -68,5 +68,15 @@
     "used_at": null,
     "status": "active",
     "metadata": {}
+  },
+  "a6af77ac-54a3-48cb-8b69-77cbe0482203": {
+    "id": "a6af77ac-54a3-48cb-8b69-77cbe0482203",
+    "description": "A mysterious stranger arrives",
+    "target": "next",
+    "priority": 8,
+    "created_at": "2025-07-18 16:31:19.918459",
+    "used_at": null,
+    "status": "active",
+    "metadata": {}
   }
 }

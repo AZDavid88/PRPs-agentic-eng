@@ -9,7 +9,7 @@ import asyncio
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -55,7 +55,7 @@ class AgentPerformanceMetrics:
         self.total_requests += 1
         self.total_processing_time += processing_time
         self.average_response_time = self.total_processing_time / self.total_requests
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc)
 
         if success:
             self.successful_requests += 1
@@ -115,8 +115,8 @@ class AgentLifecycleManager:
         self.context_stack: list[AgentContext] = []
         self.shutdown_callbacks: list[Callable] = []
         self.health_callbacks: list[Callable] = []
-        self.created_at = datetime.utcnow()
-        self.last_state_change = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
+        self.last_state_change = datetime.now(timezone.utc)
         self.active_requests = 0
         self.max_concurrent_requests = config.app.max_concurrent_tasks
 
@@ -164,7 +164,7 @@ class AgentLifecycleManager:
         """Transition agent to new state."""
         old_state = self.state
         self.state = new_state
-        self.last_state_change = datetime.utcnow()
+        self.last_state_change = datetime.now(timezone.utc)
 
         logger.info(
             f"Agent {self.agent_id} state transition: {old_state.value} -> {new_state.value}",

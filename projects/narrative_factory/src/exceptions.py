@@ -320,8 +320,8 @@ class ErrorHandler:
     def get_error_stats(self) -> dict[str, Any]:
         """Get error statistics for monitoring."""
         return {
-            "error_counts": self.error_counts.copy(),
-            "last_errors": self.last_errors.copy(),
+            "error_counts": self.error_counts.model_copy(),
+            "last_errors": self.last_errors.model_copy(),
             "total_errors": sum(self.error_counts.values())
         }
 

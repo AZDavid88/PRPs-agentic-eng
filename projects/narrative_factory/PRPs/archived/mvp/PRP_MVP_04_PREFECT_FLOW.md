@@ -17,10 +17,10 @@ To define a Prefect flow that orchestrates a **stateful, pausable** four-agent a
 
 ### Success Criteria
 
-- [ ] A `generation_flow` is defined as a Prefect `@flow` in `src/narrative_factory/workflows/generation.py`.
+- [ ] A `generation-flow` is defined as a Prefect `@flow` in `src/narrative-factory/workflows/generation.py`.
 - [ ] The execution of each agent (`Director`, `Tactician`, etc.) is defined as a Prefect `@task`.
 - [ ] Agent tasks interact with the `JobStore` to create and update jobs in Redis.
-- [ ] The flow correctly creates jobs with a `pending_approval` status after the Director and Tactician tasks, and then pauses.
+- [ ] The flow correctly creates jobs with a `pending-approval` status after the Director and Tactician tasks, and then pauses.
 - [ ] The flow can be resumed or re-run based on external events (triggered by the CLI) that modify the job state in Redis.
 - [ ] The entire process can be observed in the local Prefect UI.
 
@@ -42,7 +42,7 @@ use context7 for pytest topic "testing workflow execution and task mocking"
 use context7 for prefect topic "retries, caching, and error handling patterns"
 
 # Use Context7 for Prefect state dependencies
-use context7 for library /prefecthq/prefect topic "wait_for and future handling"
+use context7 for library /prefecthq/prefect topic "wait-for and future handling"
 
 # Use Context7 for Prefect error handling
 use context7 for library /prefecthq/prefect topic "retries and task recovery patterns"
@@ -56,16 +56,16 @@ use context7 for library /prefecthq/prefect topic "result storage and caching"
 - **Async Workflows**: Current approaches for async task execution and parallel agent processing
 - **Testing Workflows**: Advanced patterns for testing flows and tasks with mocked agent dependencies
 - **Error Handling**: Modern retry strategies, caching patterns, and workflow resilience techniques
-- **State Dependencies**: Advanced `wait_for` patterns for coordinating task execution and managing dependencies
+- **State Dependencies**: Advanced `wait-for` patterns for coordinating task execution and managing dependencies
 - **Task Recovery**: Comprehensive retry logic, failure handling, and workflow resilience patterns
 - **Result Persistence**: Best practices for result storage, caching, and data persistence across flow runs
 
 **Critical Context7 Patterns for Prefect Flow:**
-- **Task Dependencies**: Use `wait_for=[task_a, task_b]` to ensure proper execution ordering for HITL checkpoints
+- **Task Dependencies**: Use `wait-for=[task-a, task-b]` to ensure proper execution ordering for HITL checkpoints
 - **Future Handling**: Implement `task.submit()` for concurrent execution and `future.result()` for blocking waits
-- **Error Recovery**: Use `@task(retries=3, retry_delay_seconds=5)` for resilient task execution
+- **Error Recovery**: Use `@task(retries=3, retry_delay-seconds=5)` for resilient task execution
 - **State Management**: Leverage Prefect's built-in state tracking for pausable and resumable workflows
-- **Result Caching**: Implement `cache_policy=INPUTS` for efficient task result reuse
+- **Result Caching**: Implement `cache-policy=INPUTS` for efficient task result reuse
 - **Flow Composition**: Use nested flows and subflows for complex workflow organization
 - **Event-Driven Patterns**: Integrate with external systems (Redis) for HITL workflow state management
 - **Concurrent Processing**: Use `task.map()` for parallel execution when processing multiple inputs
@@ -81,10 +81,10 @@ use context7 for library /prefecthq/prefect topic "result storage and caching"
 - doc: https://docs.prefect.io/latest/concepts/tasks/
   why: Core documentation on how to define Prefect tasks.
 
-- file: /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_02_AGENT_CORE.md
+- file: /workspaces/PRPs-agentic-eng/projects/narrative-factory/PRPs/PRP_MVP_02_AGENT_CORE.md
   why: Defines the agent Pydantic models that will be passed between tasks.
 
-- file: /workspaces/PRPs-agentic-eng/projects/narrative_factory/PRPs/PRP_MVP_05_CLI.md
+- file: /workspaces/PRPs-agentic-eng/projects/narrative-factory/PRPs/PRP_MVP_05_CLI.md
   why: Defines the CLI commands that will trigger and interact with this flow.
 ```
 
@@ -95,57 +95,57 @@ Based on Context7 Prefect patterns, implement the stateful workflow:
 ### 1. JobStore Service for Redis State Management
 
 ```python
-# In src/narrative_factory/workflows/jobs.py
+# In src/narrative-factory/workflows/jobs.py
 import redis
 import json
 from typing import Optional, List
-from narrative_factory.agents.models import JobState
+from narrative-factory.agents.models import JobState
 
 class JobStore:
-    def __init__(self):
-        self.redis_client = redis.Redis(
-            host=os.getenv("REDIS_HOST", "localhost"),
-            port=int(os.getenv("REDIS_PORT", 6379)),
-            decode_responses=True
+    def __init_-(self):
+        self.redis-client = redis.Redis(
+            host=os.getenv("REDIS-HOST", "localhost"),
+            port=int(os.getenv("REDIS-PORT", 6379)),
+            decode-responses=True
         )
     
-    def create_job(self, agent: str, input_payload: dict) -> str:
-        """Create new job in Redis and return job_id."""
+    def create-job(self, agent: str, input-payload: dict) -> str:
+        """Create new job in Redis and return job-id."""
         job = JobState(
             agent=agent,
             status="processing", 
-            input_payload=input_payload
+            input-payload=input-payload
         )
-        self.redis_client.set(f"job:{job.job_id}", job.model_dump_json())
-        return job.job_id
+        self.redis-client.set(f"job:{job.job-id}", job.model_dump-json())
+        return job.job-id
     
-    def update_job_as_pending(self, job_id: str, output_payload: dict):
-        """Update job with output and set status to pending_approval."""
-        job_data = self.redis_client.get(f"job:{job_id}")
-        if job_data:
-            job = JobState.model_validate_json(job_data)
-            job.status = "pending_approval"
-            job.output_payload = output_payload
-            job.updated_at = datetime.now()
-            self.redis_client.set(f"job:{job_id}", job.model_dump_json())
+    def update_job_as-pending(self, job-id: str, output-payload: dict):
+        """Update job with output and set status to pending-approval."""
+        job-data = self.redis-client.get(f"job:{job-id}")
+        if job-data:
+            job = JobState.model_validate-json(job-data)
+            job.status = "pending-approval"
+            job.output-payload = output-payload
+            job.updated-at = datetime.now()
+            self.redis-client.set(f"job:{job-id}", job.model_dump-json())
     
-    def approve_job(self, job_id: str) -> Optional[dict]:
+    def approve-job(self, job-id: str) -> Optional[dict]:
         """Approve job and return output payload."""
-        job_data = self.redis_client.get(f"job:{job_id}")
-        if job_data:
-            job = JobState.model_validate_json(job_data)
+        job-data = self.redis-client.get(f"job:{job-id}")
+        if job-data:
+            job = JobState.model_validate-json(job-data)
             job.status = "approved"
-            self.redis_client.set(f"job:{job_id}", job.model_dump_json())
-            return job.output_payload
+            self.redis-client.set(f"job:{job-id}", job.model_dump-json())
+            return job.output-payload
         return None
     
-    def get_pending_jobs(self) -> List[JobState]:
-        """Get all jobs with pending_approval status."""
+    def get_pending-jobs(self) -> List[JobState]:
+        """Get all jobs with pending-approval status."""
         jobs = []
-        for key in self.redis_client.scan_iter(match="job:*"):
-            job_data = self.redis_client.get(key)
-            job = JobState.model_validate_json(job_data)
-            if job.status == "pending_approval":
+        for key in self.redis-client.scan-iter(match="job:*"):
+            job-data = self.redis-client.get(key)
+            job = JobState.model_validate-json(job-data)
+            if job.status == "pending-approval":
                 jobs.append(job)
         return jobs
 ```
@@ -153,134 +153,134 @@ class JobStore:
 ### 2. Agent Tasks with Dependencies
 
 ```python
-# In src/narrative_factory/workflows/generation.py
+# In src/narrative-factory/workflows/generation.py
 from prefect import flow, task
-from narrative_factory.agents.personas import DirectorAgent, TacticianAgent, WeaverAgent, CanonistAgent
-from narrative_factory.workflows.jobs import JobStore
-from narrative_factory.memory.qdrant import QdrantService
+from narrative-factory.agents.personas import DirectorAgent, TacticianAgent, WeaverAgent, CanonistAgent
+from narrative-factory.workflows.jobs import JobStore
+from narrative-factory.memory.qdrant import QdrantService
 
-job_store = JobStore()
-memory_service = QdrantService()
+job-store = JobStore()
+memory-service = QdrantService()
 
-@task(retries=3, retry_delay_seconds=5)
-def director_task(chapter_seed: str, active_characters: list = None) -> str:
+@task(retries=3, retry_delay-seconds=5)
+def director-task(chapter-seed: str, active-characters: list = None) -> str:
     """Execute Director agent and save result to JobStore."""
-    if active_characters is None:
-        active_characters = ["char_protagonist"]
+    if active-characters is None:
+        active-characters = ["char-protagonist"]
     
     # Create job in JobStore
-    job_id = job_store.create_job(
+    job-id = job-store.create-job(
         agent="Director",
-        input_payload={"chapter_seed": chapter_seed, "active_characters": active_characters}
+        input-payload={"chapter-seed": chapter-seed, "active-characters": active-characters}
     )
     
     # Get context from memory service
-    context = memory_service.fetch_context_for_director(chapter_seed, active_characters)
+    context = memory-service.fetch_context_for-director(chapter-seed, active-characters)
     
     # Execute Director agent
     director = DirectorAgent()
-    strategic_brief = director.execute(chapter_seed, context)
+    strategic-brief = director.execute(chapter-seed, context)
     
     # Save output and mark as pending approval
-    job_store.update_job_as_pending(job_id, strategic_brief.model_dump())
+    job-store.update_job_as-pending(job-id, strategic-brief.model-dump())
     
-    return job_id
+    return job-id
 
-@task(retries=3, retry_delay_seconds=5) 
-def tactician_task(director_job_id: str) -> str:
+@task(retries=3, retry_delay-seconds=5) 
+def tactician-task(director_job-id: str) -> str:
     """Execute Tactician agent using approved Director output."""
     # Get approved Director output
-    director_output = job_store.approve_job(director_job_id)
-    if not director_output:
-        raise ValueError(f"Director job {director_job_id} not approved")
+    director-output = job-store.approve-job(director_job-id)
+    if not director-output:
+        raise ValueError(f"Director job {director_job-id} not approved")
     
     # Create new job for Tactician
-    job_id = job_store.create_job(
+    job-id = job-store.create-job(
         agent="Tactician",
-        input_payload={"strategic_brief": director_output}
+        input-payload={"strategic-brief": director-output}
     )
     
     # Execute Tactician agent
     tactician = TacticianAgent()
-    chapter_blueprint = tactician.execute(director_output)
+    chapter-blueprint = tactician.execute(director-output)
     
     # Save output and mark as pending approval
-    job_store.update_job_as_pending(job_id, chapter_blueprint.model_dump())
+    job-store.update_job_as-pending(job-id, chapter-blueprint.model-dump())
     
-    return job_id
+    return job-id
 
 @task
-def weaver_task(tactician_job_id: str) -> str:
+def weaver-task(tactician_job-id: str) -> str:
     """Execute Weaver agent (no approval needed)."""
-    tactician_output = job_store.approve_job(tactician_job_id)
-    if not tactician_output:
-        raise ValueError(f"Tactician job {tactician_job_id} not approved")
+    tactician-output = job-store.approve-job(tactician_job-id)
+    if not tactician-output:
+        raise ValueError(f"Tactician job {tactician_job-id} not approved")
     
     weaver = WeaverAgent()
-    chapter_text = weaver.execute(tactician_output)
+    chapter-text = weaver.execute(tactician-output)
     
     # Save final output
-    job_id = job_store.create_job(
+    job-id = job-store.create-job(
         agent="Weaver", 
-        input_payload={"chapter_blueprint": tactician_output}
+        input-payload={"chapter-blueprint": tactician-output}
     )
-    job_store.update_job_as_pending(job_id, {"chapter_text": chapter_text})
+    job-store.update_job_as-pending(job-id, {"chapter-text": chapter-text})
     
-    return chapter_text
+    return chapter-text
 
-@flow(log_prints=True)
-def initial_generation_flow(chapter_seed: str, active_characters: list = None):
+@flow(log-prints=True)
+def initial_generation-flow(chapter-seed: str, active-characters: list = None):
     """Initial flow: Director task only, then pause for approval."""
-    print(f"Starting generation flow with seed: {chapter_seed}")
+    print(f"Starting generation flow with seed: {chapter-seed}")
     
-    director_job_id = director_task(chapter_seed, active_characters)
+    director_job-id = director-task(chapter-seed, active-characters)
     
-    print(f"Director task complete. Job ID: {director_job_id}")
-    print("Use CLI to review and approve: factory.py review {director_job_id}")
+    print(f"Director task complete. Job ID: {director_job-id}")
+    print("Use CLI to review and approve: factory.py review {director_job-id}")
     
-    return director_job_id
+    return director_job-id
 
-@flow(log_prints=True) 
-def continue_generation_flow(director_job_id: str):
+@flow(log-prints=True) 
+def continue_generation-flow(director_job-id: str):
     """Continue flow: Tactician task, then pause for approval."""
-    print(f"Continuing generation with approved Director job: {director_job_id}")
+    print(f"Continuing generation with approved Director job: {director_job-id}")
     
-    tactician_job_id = tactician_task(director_job_id)
+    tactician_job-id = tactician-task(director_job-id)
     
-    print(f"Tactician task complete. Job ID: {tactician_job_id}")
-    print("Use CLI to review and approve: factory.py review {tactician_job_id}")
+    print(f"Tactician task complete. Job ID: {tactician_job-id}")
+    print("Use CLI to review and approve: factory.py review {tactician_job-id}")
     
-    return tactician_job_id
+    return tactician_job-id
 
-@flow(log_prints=True)
-def finalize_generation_flow(tactician_job_id: str):
+@flow(log-prints=True)
+def finalize_generation-flow(tactician_job-id: str):
     """Final flow: Weaver and Canonist tasks (automated)."""
-    print(f"Finalizing generation with approved Tactician job: {tactician_job_id}")
+    print(f"Finalizing generation with approved Tactician job: {tactician_job-id}")
     
-    chapter_text = weaver_task(tactician_job_id)
+    chapter-text = weaver-task(tactician_job-id)
     
     print("Chapter generation complete!")
-    print(f"Generated {len(chapter_text.split())} words")
+    print(f"Generated {len(chapter-text.split())} words")
     
-    return chapter_text
+    return chapter-text
 ```
 
 ### 3. Task Dependencies and State Management
 
-The workflow uses Prefect's task dependency system with `wait_for` parameter and external Redis state:
+The workflow uses Prefect's task dependency system with `wait-for` parameter and external Redis state:
 
-- **Step 1**: `initial_generation_flow` → Director task → Pause for approval
-- **Step 2**: `continue_generation_flow` → Tactician task → Pause for approval  
-- **Step 3**: `finalize_generation_flow` → Weaver + Canonist tasks → Complete
+- **Step 1**: `initial_generation-flow` → Director task → Pause for approval
+- **Step 2**: `continue_generation-flow` → Tactician task → Pause for approval  
+- **Step 3**: `finalize_generation-flow` → Weaver + Canonist tasks → Complete
 
 ### List of tasks to be completed
 
-1. **CREATE** `src/narrative_factory/workflows/jobs.py` with Redis-based JobStore service
-2. **CREATE** `src/narrative_factory/workflows/generation.py` with three pausable flows
+1. **CREATE** `src/narrative-factory/workflows/jobs.py` with Redis-based JobStore service
+2. **CREATE** `src/narrative-factory/workflows/generation.py` with three pausable flows
 3. **IMPLEMENT** task retry logic and error handling using `@task(retries=3)`
 4. **INTEGRATE** agent execution within Prefect tasks with proper dependency management
 5. **SETUP** Redis connection management with environment variable configuration
-6. **IMPLEMENT** job state transitions: processing → pending_approval → approved → complete
+6. **IMPLEMENT** job state transitions: processing → pending-approval → approved → complete
 
 ## Validation Loop
 
@@ -288,8 +288,8 @@ The workflow uses Prefect's task dependency system with `wait_for` parameter and
 
 ```bash
 # Run these FIRST - fix any errors before proceeding
-ruff check src/narrative_factory/workflows/ --fix
-mypy src/narrative_factory/workflows/
+uv run ruff check src/narrative-factory/workflows/ --fix
+uv run mypy src/narrative-factory/workflows/
 
 # Expected: No errors.
 ```
@@ -299,51 +299,51 @@ mypy src/narrative_factory/workflows/
 This test will validate the interaction between the tasks and a mocked `JobStore`.
 
 ```python
-# In a new file: tests/test_workflows.py
+# In a new file: tests/test-workflows.py
 
-from narrative_factory.workflows.generation import generation_flow
-from narrative_factory.agents.models import StrategicBrief
+from narrative-factory.workflows.generation import generation-flow
+from narrative-factory.agents.models import StrategicBrief
 
-def test_generation_flow_creates_pending_job(mocker):
+def test_generation_flow_creates_pending-job(mocker):
     """
     Tests that the initial flow runs the director task and creates a pending job in the job store.
     """
     # Mock the agent execution itself
     mocker.patch(
-        'narrative_factory.agents.personas.DirectorAgent.execute',
-        return_value=StrategicBrief(...) # Populate with valid data
+        'narrative-factory.agents.personas.DirectorAgent.execute',
+        return-value=StrategicBrief(...) # Populate with valid data
     )
     # Mock the JobStore
-    mock_job_store = mocker.patch('narrative_factory.workflows.generation.JobStore')
+    mock_job-store = mocker.patch('narrative-factory.workflows.generation.JobStore')
 
     # Run the initial flow
-    generation_flow("A test seed.")
+    generation-flow("A test seed.")
 
     # Assert that a job was created and then updated to pending
-    mock_job_store.create_job.assert_called_once()
-    mock_job_store.update_job_as_pending.assert_called_once()
+    mock_job-store.create-job.assert_called-once()
+    mock_job-store.update_job_as-pending.assert_called-once()
 ```
 
 ```bash
 # Run and iterate until passing:
-uv run pytest tests/test_workflows.py -v
+uv run pytest tests/test-workflows.py -v
 ```
 
 ### Level 3: Prefect UI Validation
 
 ```bash
 # In a temporary script or a Jupyter notebook
-from narrative_factory.workflows.generation import generation_flow
+from narrative-factory.workflows.generation import generation-flow
 
-if __name__ == "__main__":
+if __name_- == "__main_-":
     # This will run the first part of the flow
-    generation_flow("A test seed to run in the UI.")
+    generation-flow("A test seed to run in the UI.")
     print("Generation flow initiated. Check Prefect UI and then use the CLI to approve the job.")
 ```
 
 ```bash
 # Run the script
-python temp_script.py
+python temp-script.py
 
 # Open the Prefect UI (typically http://127.0.0.1:4200/)
 # Expected: A successful flow run for "generation-flow" should be visible.

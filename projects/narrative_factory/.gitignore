@@ -75,3 +75,12 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# ruff
+.ruff_cache/
+
+# Development diagnostics (should be archived, not committed)
+*_baseline.txt
+*_audit.txt
+*_with_config.txt
+validation_*.txt
