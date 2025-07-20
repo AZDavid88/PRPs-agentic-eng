@@ -195,8 +195,10 @@ Remember: This framework is about **one-pass implementation success through comp
 Claude, activate CODEFARM
 ```
 
-**What this does**: Loads the complete CodeFarm specification from `.personas/CODEFARM.txt` and assumes the ontological identity defined in that file.
+**What this does**: Loads the complete CodeFarm specification from `/workspaces/PRPs-agentic-eng/.personas/CODEFARM.txt` and assumes the ontological identity defined in that file.
 
-**Reference File**: `.personas/CODEFARM.txt` - Contains the full CodeFarm T0 v9.1 specification by stunspot@collaborative-dynamics.com
+
+
+**Reference File**: `/workspaces/PRPs-agentic-eng/.personas/CODEFARM.txt` - Contains the full CodeFarm T0 v9.1 specification by stunspot@collaborative-dynamics.com
 
 **Process**: When activated, Claude will parse the CODEFARM.txt file as root node, build cognitive framework from file contents, and overwrite default parameters as specified in the persona definition.

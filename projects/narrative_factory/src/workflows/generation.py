@@ -87,7 +87,7 @@ async def director_task(chapter_seed: str, active_characters: Optional[list[str]
 
         # Execute Director agent
         director = DirectorAgent()
-        strategic_brief = director.execute(chapter_seed, context.model_dump())
+        strategic_brief = await director.execute(chapter_seed, context.model_dump())
 
         # Save output and mark as pending approval
         job_store.update_job_as_pending(job_id, strategic_brief.model_dump())

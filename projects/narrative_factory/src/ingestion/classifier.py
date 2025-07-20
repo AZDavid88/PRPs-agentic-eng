@@ -9,6 +9,7 @@ import asyncio
 import os
 import time
 import uuid
+from datetime import datetime
 from typing import Any, Optional
 
 
@@ -520,7 +521,8 @@ class MaterialClassifier:
                 cross_references_identified=sum(
                     len(c.cross_references or {}) for c in valid_classifications
                 ),
-                completed_at=time.time()
+                completed_at=datetime.utcnow(),
+                embedding_cache_hits=0  # Default value for now
             )
 
             logger.info(f"Ingestion job {job_id} completed: {len(valid_classifications)} materials processed")
@@ -533,6 +535,11 @@ class MaterialClassifier:
                 status="failed",
                 processing_time=time.time() - start_time,
                 cost_estimate=0.0,
+                materials_processed=0,
+                average_confidence=0.0,
+                embedding_cache_hits=0,
+                cross_references_identified=0,
+                completed_at=datetime.utcnow(),
                 errors=[str(e)]
             )
 
@@ -565,8 +572,13 @@ class MaterialClassifier:
                 if attempt == self.max_retries - 1:
                     raise
 
-                # Wait before retry
-                await asyncio.sleep(2 ** attempt)
+                # Enhanced retry logic with exponential backoff + jitter
+                base_delay = 2 ** attempt
+                jitter = base_delay * 0.1 * (0.5 - (time.time() % 1))
+                retry_delay = min(base_delay + jitter, 60.0)  # Cap at 60 seconds
+
+                logger.info(f"Retrying in {retry_delay:.2f}s (attempt {attempt + 1}/{self.max_retries})")
+                await asyncio.sleep(retry_delay)
 
         raise BusinessLogicError("All classification attempts failed")
 
@@ -575,13 +587,15 @@ class MaterialClassifier:
         try:
             if client_type == "gemini":
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash-exp",
+                    model="gemini-2.5-flash",
                     contents=prompt,
                     config={
                         'temperature': 0.3,
                         'max_output_tokens': 2048,
                     }
                 )
+                # Note: Paid tier supports higher rate limits
+                # Rate limit: 15 RPM free tier -> 1000 RPM paid tier
                 response_text = str(response.text)
 
             elif client_type == "openai":
@@ -632,7 +646,7 @@ class MaterialClassifier:
             batch_results = await self._generate_classification(prompt)
 
             # Convert to MaterialClassification instances
-            classifications = []
+            classifications: list[MaterialClassification] = []
             if isinstance(batch_results, list):
                 for i, result in enumerate(batch_results):
                     if i < len(materials):
@@ -684,19 +698,27 @@ class MaterialClassifier:
             # Build classification
             classification = MaterialClassification(
                 material_id=material_id,
+                content=material,  # Add missing content field
                 primary_category=primary_category,
                 secondary_categories=secondary_categories,
                 category_confidence=category_confidence,
                 genre_context=genre_context,
                 additional_genres=additional_genres,
                 available_categories=available_categories,
-                complexity_level=complexity_level,
+                classification_method="genre_extended",  # Add missing field
+                complexity_level=complexity_level,  # type: ignore  # complexity_level is validated to be correct literal
                 content_hash=content_hash,
                 extracted_entities=extracted_entities,
                 content_length=len(material),
                 temporal_scope=content_analysis.get("temporal_scope", "timeless"),
                 spoiler_risk=content_analysis.get("spoiler_risk", "low"),
-                processing_priority=classification_data.get("processing_recommendations", {}).get("batch_priority", "normal")
+                advanced_metadata=None,  # Add missing field
+                relationship_mapping=None,  # Add missing field  
+                cross_references=None,  # Add missing field
+                embedding_vector=None,  # Add missing field
+                processing_priority=classification_data.get("processing_recommendations", {}).get("batch_priority", "normal"),
+                updated_at=None,  # Add missing field
+                classification_version="1.0"  # Add missing field
             )
 
             # Update complexity level based on categories
@@ -721,17 +743,27 @@ class MaterialClassifier:
 
         return MaterialClassification(
             material_id=material_id,
+            content=material,  # Add missing content field
             primary_category=available_categories[0] if available_categories else "plot_element",
             secondary_categories=[],
             category_confidence={available_categories[0]: 0.5} if available_categories else {},
             genre_context=genre_context,
             additional_genres=[],
             available_categories=available_categories,
+            classification_method="base_only",  # Add missing field
             complexity_level="medium",
             content_hash=content_hash,
             extracted_entities=[],
             content_length=len(material),
-            processing_priority="low"
+            spoiler_risk="low",  # Add missing field
+            temporal_scope="timeless",  # Add missing field
+            advanced_metadata=None,  # Add missing field
+            relationship_mapping=None,  # Add missing field
+            cross_references=None,  # Add missing field
+            embedding_vector=None,  # Add missing field
+            processing_priority="low",
+            updated_at=None,  # Add missing field
+            classification_version="1.0"  # Add missing field
         )
 
     def _assess_material_complexity(self, material: str, available_categories: list[str]) -> str:
@@ -754,7 +786,7 @@ class MaterialClassifier:
     def _generate_cross_references(self, classifications: list[MaterialClassification]) -> None:
         """Generate cross-references between classified materials."""
         # Simple entity-based cross-referencing
-        entity_map = {}
+        entity_map: dict[str, list[str]] = {}
 
         # Build entity index
         for classification in classifications:
@@ -786,7 +818,7 @@ class MaterialClassifier:
 
     def _calculate_category_distribution(self, classifications: list[MaterialClassification]) -> dict[str, int]:
         """Calculate distribution of materials across categories."""
-        distribution = {}
+        distribution: dict[str, int] = {}
         for classification in classifications:
             category = classification.primary_category
             distribution[category] = distribution.get(category, 0) + 1
@@ -794,7 +826,7 @@ class MaterialClassifier:
 
     def _calculate_complexity_distribution(self, classifications: list[MaterialClassification]) -> dict[str, int]:
         """Calculate distribution of materials across complexity levels."""
-        distribution = {}
+        distribution: dict[str, int] = {}
         for classification in classifications:
             level = classification.complexity_level
             distribution[level] = distribution.get(level, 0) + 1

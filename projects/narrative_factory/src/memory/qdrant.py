@@ -26,6 +26,7 @@ try:
         Filter,
         MatchAny,
         MatchValue,
+        PayloadSchemaType,
         PointStruct,
         VectorParams,
     )
@@ -39,6 +40,7 @@ except ImportError:
     Filter = None
     MatchAny = None
     MatchValue = None
+    PayloadSchemaType = None
     PointStruct = None
     VectorParams = None
 
@@ -389,6 +391,44 @@ class QdrantService:
                 logger.error(f"Failed to create collection {collection_name}: {e}")
                 raise DatabaseError(f"Failed to create collection {collection_name}: {e}") from e
 
+        # Create payload indexes for filtering
+        await self._create_payload_indexes()
+
+    async def _create_payload_indexes(self) -> None:
+        """Create payload indexes for efficient filtering."""
+        collections = [
+            config.qdrant.world_bible_collection,
+            config.qdrant.story_so_far_collection
+        ]
+
+        # Define required indexes for narrative factory filtering
+        required_indexes = {
+            "present_characters": PayloadSchemaType.KEYWORD,
+            "doc_type": PayloadSchemaType.KEYWORD,
+            "thread_id": PayloadSchemaType.KEYWORD,
+            "tension_status": PayloadSchemaType.KEYWORD,
+            "character_name": PayloadSchemaType.KEYWORD,
+            "status": PayloadSchemaType.KEYWORD
+        }
+
+        for collection_name in collections:
+            for field_name, schema_type in required_indexes.items():
+                try:
+                    async with self.connection_pool.get_connection() as client:
+                        await client.create_payload_index(
+                            collection_name=collection_name,
+                            field_name=field_name,
+                            field_schema=schema_type
+                        )
+                        logger.info(f"Created payload index: {collection_name}.{field_name}")
+                except Exception as e:
+                    # Index might already exist, check if it's a "already exists" error
+                    if "already exists" in str(e).lower() or "index exists" in str(e).lower():
+                        logger.debug(f"Payload index {collection_name}.{field_name} already exists")
+                    else:
+                        logger.warning(f"Failed to create payload index {collection_name}.{field_name}: {e}")
+                        # Don't raise - indexes are nice to have but not critical for basic operation
+
     async def _embed_text(self, text: str) -> list[float]:
         """
         Generate embeddings for text using the configured embedding service.
@@ -680,6 +720,21 @@ class QdrantService:
         except Exception as e:
             logger.error(f"Failed to get collection info for {collection_name}: {e}")
             return {}
+
+    async def list_collections(self) -> list[str]:
+        """
+        List all available collections.
+
+        Returns:
+            List of collection names
+        """
+        try:
+            async with self.connection_pool.get_connection() as client:
+                collections = await client.get_collections()
+            return [collection.name for collection in collections.collections]
+        except Exception as e:
+            logger.error(f"Failed to list collections: {e}")
+            return []
 
     async def delete_collection(self, collection_name: str) -> bool:
         """

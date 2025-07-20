@@ -18,6 +18,11 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem"],
       "transport": "stdio"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"],
+      "transport": "stdio"
     }
   }
 }

@@ -66,11 +66,12 @@ class LibrarianAgent(Agent):
         super().__init__("librarian", client_type, memory_service)
 
         # Initialize services
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = EmbeddingService(provider="jina")
 
         # Processing configuration
         self.max_concurrent_materials = 20
-        self.default_embedding_model = "text-embedding-3-small"
+        self.default_embedding_model = "jina-embeddings-v4"
+        self.embedding_dimensions = 2048  # Jina v4 dimensions
         self.similarity_threshold = 0.7
 
         # Metrics tracking
@@ -353,14 +354,12 @@ class LibrarianAgent(Agent):
             else:
                 chunks = await self._recursive_text_splitting(content)
 
-            # Generate embeddings with late chunking (using OpenAI embedding model)
-            embeddings = await self.embedding_service.generate_embeddings_batch(
-                chunks,
-                model=self.default_embedding_model,
-                batch_size=50  # Optimize for API efficiency
-            )
+            # Generate embeddings with late chunking (using Jina v4 embedding model)
+            embeddings = await self.embedding_service.generate_embeddings(chunks)
 
             # Store in memory service with enhanced metadata
+            if self.memory_service is None:
+                raise ValueError("Memory service not initialized")
             storage_result = await self.memory_service.store_material_embeddings(
                 content=content,
                 embeddings=embeddings,
@@ -628,7 +627,7 @@ class LibrarianAgent(Agent):
 
         return {
             "style_indicators": style_indicators,
-            "dominant_style": max(style_indicators, key=style_indicators.get),
+            "dominant_style": max(style_indicators, key=lambda x: style_indicators[x]),
             "has_examples": "example" in content or "sample" in content
         }
 
@@ -646,7 +645,7 @@ class LibrarianAgent(Agent):
 
         return {
             "personality_indicators": personality_indicators,
-            "dominant_trait": max(personality_indicators, key=personality_indicators.get),
+            "dominant_trait": max(personality_indicators, key=lambda x: personality_indicators[x]),
             "has_dialogue_examples": "says" in content or "\"" in classification.content
         }
 
@@ -770,7 +769,7 @@ class LibrarianAgent(Agent):
             List of cross-references between materials
         """
         try:
-            cross_refs = []
+            cross_refs: list[CrossReference] = []
 
             # Extract materials with embeddings
             materials_with_embeddings = [
@@ -787,7 +786,11 @@ class LibrarianAgent(Agent):
             for i, (source_material, source_embedding) in enumerate(materials_with_embeddings):
                 for _j, (target_material, target_embedding) in enumerate(materials_with_embeddings[i+1:], i+1):
 
-                    # Calculate cosine similarity
+                    # Calculate cosine similarity  
+                    if source_embedding is None or target_embedding is None:
+                        continue
+                    if not isinstance(source_embedding, list) or not isinstance(target_embedding, list):
+                        continue
                     similarity = self._cosine_similarity(source_embedding, target_embedding)
 
                     if similarity > self.similarity_threshold:

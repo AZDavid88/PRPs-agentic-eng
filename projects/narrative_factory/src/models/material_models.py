@@ -192,6 +192,7 @@ class MaterialClassification(BaseModel):
     )
 
     # Content and processing metadata
+    content: str = Field(..., description="Original material content")
     content_hash: str = Field(..., description="SHA256 hash of original content")
     extracted_entities: list[str] = Field(
         default_factory=list,
@@ -333,6 +334,22 @@ class MaterialClassification(BaseModel):
     def generate_content_hash(cls, content: str) -> str:
         """Generate SHA256 hash for content."""
         return sha256(content.encode('utf-8')).hexdigest()
+
+    # Convenience properties for backward compatibility
+    @property
+    def id(self) -> str:
+        """Backward compatibility alias for material_id."""
+        return self.material_id
+    
+    @property
+    def category(self) -> str:
+        """Backward compatibility alias for primary_category."""
+        return self.primary_category
+    
+    @property
+    def confidence_score(self) -> float:
+        """Backward compatibility: get confidence for primary category."""
+        return self.category_confidence.get(self.primary_category, 0.0)
 
 
 class MaterialIngestionRequest(BaseModel):
