@@ -1031,6 +1031,10 @@ async def query_materials_with_temporal_gating(
         return await storage_service.query_materials(query_request, temporal_filter)
 
 
+# Convenience alias for backwards compatibility
+MaterialStorageService = MaterialStorage
+
+
 if __name__ == "__main__":
     async def main():
         """Example usage of MaterialStorage."""

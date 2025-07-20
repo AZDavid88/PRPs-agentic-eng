@@ -1,0 +1,263 @@
+# Prometheus alerting rules for narrative factory
+# CodeFarm T04 Production Optimization Implementation
+groups:
+- name: narrative_factory_alerts
+  rules:
+  # Application Performance Alerts
+  - alert: HighResponseTime
+    expr: histogram_quantile(0.95, narrative_factory_request_duration_seconds_bucket) > 2
+    for: 2m
+    labels:
+      severity: warning
+      component: application
+    annotations:
+      summary: "High response time detected"
+      description: "95th percentile response time is {{ $value }}s for service {{ $labels.service }}"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/high-response-time"
+
+  - alert: HighErrorRate
+    expr: rate(narrative_factory_requests_total{status="error"}[5m]) > 0.05
+    for: 1m
+    labels:
+      severity: critical
+      component: application
+    annotations:
+      summary: "High error rate detected"
+      description: "Error rate is {{ $value | humanizePercentage }} for service {{ $labels.service }}"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/high-error-rate"
+
+  - alert: AgentExecutionTimeout
+    expr: histogram_quantile(0.95, narrative_factory_agent_execution_seconds_bucket) > 10
+    for: 3m
+    labels:
+      severity: warning
+      component: agents
+    annotations:
+      summary: "Agent execution taking too long"
+      description: "95th percentile agent execution time is {{ $value }}s for agent {{ $labels.agent_type }}"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/agent-timeout"
+
+  - alert: WebSocketConnectionsHigh
+    expr: narrative_factory_active_connections > 80
+    for: 5m
+    labels:
+      severity: warning
+      component: websockets
+    annotations:
+      summary: "High number of WebSocket connections"
+      description: "{{ $value }} active WebSocket connections detected"
+
+  # Infrastructure Alerts
+  - alert: HighMemoryUsage
+    expr: narrative_factory_memory_usage_bytes / (1024*1024*1024) > 1.5
+    for: 5m
+    labels:
+      severity: warning
+      component: infrastructure
+    annotations:
+      summary: "High memory usage"
+      description: "Memory usage is {{ $value | humanize }}GB for pod {{ $labels.pod }}"
+
+  - alert: HighCPUUsage
+    expr: narrative_factory_cpu_usage_percent > 80
+    for: 5m
+    labels:
+      severity: warning
+      component: infrastructure
+    annotations:
+      summary: "High CPU usage"
+      description: "CPU usage is {{ $value }}% for pod {{ $labels.pod }}"
+
+  # Pod and Container Alerts
+  - alert: PodCrashLooping
+    expr: rate(kube_pod_container_status_restarts_total[5m]) > 0
+    for: 2m
+    labels:
+      severity: critical
+      component: kubernetes
+    annotations:
+      summary: "Pod is crash looping"
+      description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is restarting frequently"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/pod-crash-loop"
+
+  - alert: PodNotReady
+    expr: kube_pod_status_ready{condition="false"} == 1
+    for: 5m
+    labels:
+      severity: warning
+      component: kubernetes
+    annotations:
+      summary: "Pod not ready"
+      description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been not ready for more than 5 minutes"
+
+  - alert: DeploymentReplicasMismatch
+    expr: kube_deployment_status_replicas_available != kube_deployment_spec_replicas
+    for: 5m
+    labels:
+      severity: warning
+      component: kubernetes
+    annotations:
+      summary: "Deployment replicas mismatch"
+      description: "Deployment {{ $labels.deployment }} has {{ $labels.available }} available replicas out of {{ $labels.desired }} desired"
+
+  # Service Availability Alerts
+  - alert: ServiceDown
+    expr: up{job="narrative-factory"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      component: application
+    annotations:
+      summary: "Narrative Factory service is down"
+      description: "Service {{ $labels.service }} has been down for more than 1 minute"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/service-down"
+
+  - alert: RedisDown
+    expr: up{job="redis"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      component: redis
+    annotations:
+      summary: "Redis service is down"
+      description: "Redis instance {{ $labels.instance }} is not responding"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/redis-down"
+
+  - alert: QdrantDown
+    expr: up{job="qdrant"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      component: qdrant
+    annotations:
+      summary: "Qdrant service is down"
+      description: "Qdrant instance {{ $labels.instance }} is not responding"
+      runbook_url: "https://docs.narrative-factory.example.com/runbooks/qdrant-down"
+
+  # Resource Utilization Alerts
+  - alert: RedisMemoryHigh
+    expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      component: redis
+    annotations:
+      summary: "Redis memory usage high"
+      description: "Redis memory usage is {{ $value | humanizePercentage }} on instance {{ $labels.instance }}"
+
+  - alert: QdrantDiskSpaceHigh
+    expr: (qdrant_disk_used_bytes / qdrant_disk_total_bytes) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      component: qdrant
+    annotations:
+      summary: "Qdrant disk usage high"
+      description: "Qdrant disk usage is {{ $value | humanizePercentage }} on instance {{ $labels.instance }}"
+
+  # Kubernetes Resource Alerts
+  - alert: NodeDiskPressure
+    expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+    for: 5m
+    labels:
+      severity: critical
+      component: kubernetes
+    annotations:
+      summary: "Node disk pressure"
+      description: "Node {{ $labels.node }} is experiencing disk pressure"
+
+  - alert: NodeMemoryPressure
+    expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+    for: 5m
+    labels:
+      severity: critical
+      component: kubernetes
+    annotations:
+      summary: "Node memory pressure"
+      description: "Node {{ $labels.node }} is experiencing memory pressure"
+
+  - alert: PersistentVolumeClaimFull
+    expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.9
+    for: 5m
+    labels:
+      severity: warning
+      component: storage
+    annotations:
+      summary: "PVC almost full"
+      description: "PVC {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace }} is {{ $value | humanizePercentage }} full"
+
+- name: narrative_factory_business_metrics
+  rules:
+  # Business Logic Alerts
+  - alert: LowAgentSuccessRate
+    expr: rate(narrative_factory_agent_execution_total{status="success"}[10m]) / rate(narrative_factory_agent_execution_total[10m]) < 0.9
+    for: 5m
+    labels:
+      severity: warning
+      component: business
+    annotations:
+      summary: "Low agent success rate"
+      description: "Agent {{ $labels.agent_type }} success rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+  - alert: HighWebSocketDisconnections
+    expr: rate(narrative_factory_websocket_disconnections_total[5m]) > 5
+    for: 3m
+    labels:
+      severity: warning
+      component: websockets
+    annotations:
+      summary: "High WebSocket disconnection rate"
+      description: "WebSocket disconnection rate is {{ $value }} per second"
+
+  - alert: CacheHitRateLow
+    expr: rate(narrative_factory_cache_hits_total[10m]) / rate(narrative_factory_cache_requests_total[10m]) < 0.7
+    for: 5m
+    labels:
+      severity: warning
+      component: caching
+    annotations:
+      summary: "Low cache hit rate"
+      description: "Cache hit rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+  - alert: MemoryRetrievalSlow
+    expr: histogram_quantile(0.95, narrative_factory_memory_retrieval_duration_seconds_bucket) > 1
+    for: 3m
+    labels:
+      severity: warning
+      component: memory
+    annotations:
+      summary: "Memory retrieval slow"
+      description: "95th percentile memory retrieval time is {{ $value }}s"
+
+- name: narrative_factory_sla_metrics
+  rules:
+  # SLA and SLO tracking
+  - alert: SLAViolationResponseTime
+    expr: histogram_quantile(0.99, narrative_factory_request_duration_seconds_bucket) > 5
+    for: 1m
+    labels:
+      severity: critical
+      component: sla
+    annotations:
+      summary: "SLA violation: Response time"
+      description: "99th percentile response time ({{ $value }}s) exceeds SLA of 5 seconds"
+
+  - alert: SLAViolationAvailability
+    expr: avg_over_time(up{job="narrative-factory"}[5m]) < 0.999
+    for: 1m
+    labels:
+      severity: critical
+      component: sla
+    annotations:
+      summary: "SLA violation: Availability"
+      description: "Service availability ({{ $value | humanizePercentage }}) is below 99.9% SLA"
+
+  - alert: SLAViolationErrorRate
+    expr: rate(narrative_factory_requests_total{status="error"}[5m]) > 0.001
+    for: 1m
+    labels:
+      severity: critical
+      component: sla
+    annotations:
+      summary: "SLA violation: Error rate"
+      description: "Error rate ({{ $value | humanizePercentage }}) exceeds SLA of 0.1%"

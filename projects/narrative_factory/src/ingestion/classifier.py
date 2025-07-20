@@ -118,67 +118,18 @@ Analyze this material and provide a JSON response with the following structure:
 
     @staticmethod
     def _get_genre_guidance(genre: str) -> str:
-        """Get genre-specific classification guidance."""
-        guidance_map = {
-            "fantasy": """
-For fantasy materials, pay special attention to:
-- Magic systems and their rules/limitations
-- World-building elements (geography, cultures, history)
-- Mythological creatures and their characteristics
-- Artifacts and their significance
-- Character abilities and power structures""",
+        """
+        Generate dynamic genre-specific classification guidance.
+        
+        Uses the LibrarianAgent's inherent cognitive abilities for genre analysis
+        rather than constraining to hardcoded categories.
+        """
+        
+        # Simplified cognitive approach that maintains dynamic analysis while ensuring JSON output
+        return f"""DYNAMIC GENRE ANALYSIS for {genre}:
+Apply cognitive analysis specific to {genre} storytelling patterns. Consider genre-unique elements like game mechanics (LitRPG), galactic scope (Space Opera), moral frameworks (Grimdark), or cozy atmosphere (Cozy Mystery). Adapt classification to serve {genre}-specific narrative functions and reader expectations.
 
-            "romance": """
-For romance materials, focus on:
-- Relationship dynamics and character chemistry
-- Emotional beats and romantic tension
-- Intimacy levels and romantic progression
-- Character backgrounds affecting relationships
-- Romantic arc development""",
-
-            "mystery": """
-For mystery materials, analyze:
-- Clues and evidence chains
-- Red herrings vs. genuine leads
-- Investigative methods and reasoning
-- Suspect profiles and motives
-- Crime scene details and forensics""",
-
-            "sci_fi": """
-For sci-fi materials, examine:
-- Technological concepts and their implications
-- Scientific principles and their applications
-- Future society structures and conflicts
-- Alien cultures and communication
-- Space travel and exploration elements""",
-
-            "horror": """
-For horror materials, identify:
-- Threat entities and their nature
-- Fear mechanisms and psychological elements
-- Atmospheric components creating tension
-- Survival elements and character responses
-- Supernatural vs. psychological horror aspects""",
-
-            "historical": """
-For historical materials, consider:
-- Period-specific details and accuracy
-- Cultural norms and social hierarchies
-- Historical events and their impact
-- Period-appropriate language and behavior
-- Social and political contexts""",
-
-            "literary": """
-For literary materials, analyze:
-- Symbolic elements and their meanings
-- Thematic devices and social commentary
-- Character psychology and development
-- Literary techniques and narrative structure
-- Philosophical concepts and discussions"""
-        }
-
-        return guidance_map.get(genre.lower(),
-            "Analyze the material considering its narrative context and thematic elements.")
+CRITICAL: Respond ONLY with the required JSON object. No explanatory text before or after."""
 
     @staticmethod
     def get_batch_analysis_prompt(
@@ -612,16 +563,41 @@ class MaterialClassifier:
             else:
                 raise ValueError(f"Unsupported client type: {client_type}")
 
-            # Parse JSON response
+            # Parse JSON response with enhanced error handling
             import json
             import re
 
-            # Extract JSON from response
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            # Multiple strategies for JSON extraction
+            json_str = None
+            
+            # Strategy 1: Look for complete JSON object with proper braces
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
             if json_match:
                 json_str = json_match.group(0)
-                return json.loads(json_str)
             else:
+                # Strategy 2: Look for JSON between code blocks or explicit delimiters
+                code_block_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+                if code_block_match:
+                    json_str = code_block_match.group(1)
+                else:
+                    # Strategy 3: Find the first complete JSON object
+                    brace_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                    if brace_match:
+                        json_str = brace_match.group(0)
+
+            if json_str:
+                try:
+                    # Clean up potential formatting issues
+                    json_str = json_str.strip()
+                    # Remove potential trailing comma issues
+                    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+                    return json.loads(json_str)
+                except json.JSONDecodeError as decode_error:
+                    logger.error(f"JSON decode error: {decode_error}")
+                    logger.error(f"Problematic JSON string: {json_str[:500]}...")
+                    raise ValueError(f"Invalid JSON structure: {decode_error}") from decode_error
+            else:
+                logger.error(f"No JSON found in response: {response_text[:500]}...")
                 raise ValueError("No valid JSON found in response")
 
         except Exception as e:

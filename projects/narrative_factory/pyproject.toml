@@ -51,8 +51,17 @@ dependencies = [
     # Web framework (Phase 3: Web Interface)
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    "python-multipart>=0.0.6",  # For file uploads
-    "jinja2>=3.1.0",  # For template rendering
+    "python-multipart>=0.0.6", # For file uploads
+    "jinja2>=3.1.0", # For template rendering
+    "controlflow==0.12.1",
+    "langchain-google-genai>=2.1.8",
+    "pyjwt>=2.10.1",
+    # T04 Production Optimization Dependencies
+    "redis>=5.0.0",  # Redis async client for caching
+    "prometheus_client>=0.19.0",  # Prometheus metrics collection
+    "prometheus_fastapi_instrumentator>=6.1.0",  # FastAPI metrics integration
+    "psutil>=5.9.0",  # System metrics (CPU, memory)
+    "gunicorn>=21.2.0",  # Production WSGI server
 ]
 
 [project.optional-dependencies]
@@ -138,6 +147,8 @@ module = [
     "upstash_redis.*", 
     "google.*",
     "psutil.*",
+    "prometheus_client.*",
+    "prometheus_fastapi_instrumentator.*",
 ]
 ignore_missing_imports = true
 

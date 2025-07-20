@@ -1,0 +1,326 @@
+# Qdrant vector database deployment
+# CodeFarm T04 Production Optimization Implementation
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qdrant
+  labels:
+    app: qdrant
+    component: vector-db
+spec:
+  replicas: 1  # Single instance for development, consider clustering for production
+  strategy:
+    type: Recreate  # Vector DB requires careful handling of persistent data
+  selector:
+    matchLabels:
+      app: qdrant
+  template:
+    metadata:
+      labels:
+        app: qdrant
+        component: vector-db
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "6333"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      
+      containers:
+      - name: qdrant
+        image: qdrant/qdrant:v1.7.4
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - containerPort: 6333
+          name: http
+          protocol: TCP
+        - containerPort: 6334
+          name: grpc
+          protocol: TCP
+        
+        # Resource limits based on vector workload requirements
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 6333
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 6333
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Startup probe for vector database initialization
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 6333
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12  # Allow 2 minutes for startup
+        
+        # Environment configuration
+        env:
+        - name: QDRANT__SERVICE__HTTP_PORT
+          value: "6333"
+        - name: QDRANT__SERVICE__GRPC_PORT
+          value: "6334"
+        - name: QDRANT__LOG_LEVEL
+          value: "INFO"
+        - name: QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS
+          value: "4"
+        - name: QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS
+          value: "2"
+        - name: QDRANT__SERVICE__ENABLE_CORS
+          value: "true"
+        - name: QDRANT__SERVICE__MAX_REQUEST_SIZE_MB
+          value: "32"
+        - name: QDRANT__SERVICE__MAX_WORKERS
+          value: "4"
+        
+        # Volume mounts
+        volumeMounts:
+        - name: qdrant-storage
+          mountPath: /qdrant/storage
+        - name: qdrant-config
+          mountPath: /qdrant/config/production.yaml
+          subPath: config.yaml
+          readOnly: true
+        
+        # Security context for container
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # Qdrant needs to write to storage
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+      
+      # Volumes
+      volumes:
+      - name: qdrant-storage
+        persistentVolumeClaim:
+          claimName: qdrant-storage-pvc
+      - name: qdrant-config
+        configMap:
+          name: qdrant-config
+          defaultMode: 0644
+
+---
+# Qdrant Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant
+  labels:
+    app: qdrant
+    component: vector-db
+spec:
+  type: ClusterIP
+  selector:
+    app: qdrant
+  ports:
+  - name: http
+    port: 6333
+    targetPort: 6333
+    protocol: TCP
+  - name: grpc
+    port: 6334
+    targetPort: 6334
+    protocol: TCP
+
+---
+# Qdrant metrics service for Prometheus
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant-metrics
+  labels:
+    app: qdrant
+    component: metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "6333"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: qdrant
+  ports:
+  - name: metrics
+    port: 6333
+    targetPort: 6333
+    protocol: TCP
+
+---
+# Qdrant PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-storage-pvc
+  labels:
+    app: qdrant
+    component: storage
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi  # Adjust based on expected vector data size
+  storageClassName: fast-ssd  # Use fast storage for vector operations
+
+---
+# Qdrant backup PVC (optional)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-backup-pvc
+  labels:
+    app: qdrant
+    component: backup
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi  # Should be larger than main storage for snapshots
+  storageClassName: standard  # Can use slower storage for backups
+
+---
+# Qdrant NetworkPolicy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: qdrant-netpol
+  labels:
+    app: qdrant
+    component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: qdrant
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow access from narrative-factory pods
+  - from:
+    - podSelector:
+        matchLabels:
+          app: narrative-factory
+    ports:
+    - protocol: TCP
+      port: 6333
+    - protocol: TCP
+      port: 6334
+  
+  # Allow metrics scraping from monitoring namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 6333
+
+---
+# Qdrant backup CronJob for regular snapshots
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qdrant-backup
+  labels:
+    app: qdrant
+    component: backup
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: qdrant-backup
+            component: backup
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          
+          containers:
+          - name: backup
+            image: curlimages/curl:latest
+            imagePullPolicy: IfNotPresent
+            
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "500m"
+            
+            env:
+            - name: QDRANT_URL
+              value: "http://qdrant:6333"
+            - name: BACKUP_DATE
+              value: "$(date +%Y%m%d_%H%M%S)"
+            
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting Qdrant backup at $(date)"
+              
+              # Create snapshot
+              SNAPSHOT_NAME="backup_$(date +%Y%m%d_%H%M%S)"
+              
+              # Trigger snapshot creation
+              curl -X POST "${QDRANT_URL}/collections/narrative_memory/snapshots" \
+                -H "Content-Type: application/json" \
+                -d "{\"snapshot_name\": \"${SNAPSHOT_NAME}\"}"
+              
+              echo "Backup completed: ${SNAPSHOT_NAME}"
+            
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+            
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 1000
+              capabilities:
+                drop:
+                - ALL
+          
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: qdrant-backup-pvc

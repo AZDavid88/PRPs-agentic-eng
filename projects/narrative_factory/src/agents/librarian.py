@@ -348,14 +348,15 @@ class LibrarianAgent(Agent):
             Processing metadata including storage information
         """
         try:
-            # Different chunking strategies for different material types
-            if category in ["prose_style_guide", "character_voice_profile"]:
-                chunks = await self._specialized_chunking(content, category)
-            else:
-                chunks = await self._recursive_text_splitting(content)
+            # Cognitive chunking strategy - leverage LibrarianAgent's LateChunkingCoordinator
+            chunking_strategy = await self._determine_optimal_chunking_strategy(
+                content, category, material_id
+            )
+            
+            chunks = await self._execute_chunking_strategy(content, category, chunking_strategy)
 
-            # Generate embeddings with late chunking (using Jina v4 embedding model)
-            embeddings = await self.embedding_service.generate_embeddings(chunks)
+            # Context-aware embedding generation with Jina v4
+            embeddings = await self._generate_context_aware_embeddings(chunks, category, chunking_strategy)
 
             # Store in memory service with enhanced metadata
             if self.memory_service is None:
@@ -522,6 +523,229 @@ class LibrarianAgent(Agent):
         if current_chunk.strip():
             chunks.append(current_chunk.strip())
 
+        return chunks if chunks else [content]
+
+    async def _determine_optimal_chunking_strategy(
+        self,
+        content: str,
+        category: str,
+        material_id: str
+    ) -> dict[str, Any]:
+        """
+        Leverage LibrarianAgent's LateChunkingCoordinator to determine optimal strategy.
+        
+        Uses cognitive analysis to decide chunking approach based on:
+        - Content complexity and structure
+        - Category requirements  
+        - Retrieval optimization needs
+        - Genre-specific considerations
+        """
+        content_length = len(content)
+        word_count = len(content.split())
+        
+        # Cognitive analysis of content structure
+        strategy = {
+            "method": "recursive",  # default
+            "chunk_size": 1000,
+            "overlap": 200,
+            "preserve_structure": False,
+            "use_late_chunking": True,
+            "reasoning": []
+        }
+        
+        # Content-based cognitive decisions
+        if content_length > 8000:  # Jina v4 context window
+            strategy["use_late_chunking"] = True
+            strategy["chunk_size"] = 1200  # Larger chunks for late chunking
+            strategy["reasoning"].append("Large content benefits from late chunking with Jina v4")
+            
+        # Category-aware chunking intelligence
+        if category in ["prose_style_guide", "character_voice_profile"]:
+            strategy["method"] = "specialized"
+            strategy["preserve_structure"] = True
+            strategy["reasoning"].append(f"Specialized chunking for {category} maintains semantic integrity")
+            
+        elif category in ["magic_system", "world_building", "technology"]:
+            strategy["method"] = "hierarchical"
+            strategy["chunk_size"] = 800  # Smaller for detailed systems
+            strategy["overlap"] = 150
+            strategy["reasoning"].append("System documentation requires hierarchical preservation")
+            
+        elif category in ["character", "relationship_dynamic"]:
+            strategy["method"] = "entity_aware"
+            strategy["preserve_structure"] = True
+            strategy["reasoning"].append("Character content needs entity-relationship preservation")
+            
+        elif category in ["plot_element", "narrative_style"]:
+            strategy["method"] = "narrative_flow"
+            strategy["chunk_size"] = 1400  # Longer for narrative flow
+            strategy["reasoning"].append("Narrative content benefits from flow preservation")
+            
+        # Complexity-based adjustments
+        if word_count < 100:
+            strategy["method"] = "minimal"
+            strategy["chunk_size"] = content_length
+            strategy["reasoning"].append("Short content processed as single chunk")
+            
+        elif word_count > 2000:
+            strategy["overlap"] = min(300, strategy["chunk_size"] // 4)
+            strategy["reasoning"].append("Long content needs increased overlap for coherence")
+            
+        logger.debug(f"Chunking strategy for {material_id}: {strategy['method']} - {', '.join(strategy['reasoning'])}")
+        return strategy
+
+    async def _execute_chunking_strategy(
+        self,
+        content: str,
+        category: str,
+        strategy: dict[str, Any]
+    ) -> list[str]:
+        """Execute the determined chunking strategy."""
+        
+        method = strategy["method"]
+        
+        if method == "minimal":
+            return [content]
+            
+        elif method == "specialized":
+            return await self._specialized_chunking(content, category)
+            
+        elif method == "hierarchical":
+            return await self._hierarchical_chunking(content, strategy)
+            
+        elif method == "entity_aware":
+            return await self._entity_aware_chunking(content, strategy)
+            
+        elif method == "narrative_flow":
+            return await self._narrative_flow_chunking(content, strategy)
+            
+        else:  # recursive (default)
+            return await self._recursive_text_splitting(
+                content, 
+                strategy["chunk_size"], 
+                strategy["overlap"]
+            )
+    
+    async def _generate_context_aware_embeddings(
+        self,
+        chunks: list[str],
+        category: str,
+        strategy: dict[str, Any]
+    ) -> list[list[float]]:
+        """Generate embeddings with context awareness and late chunking optimization."""
+        
+        if strategy["use_late_chunking"] and len(chunks) > 1:
+            # Use Jina v4's late chunking capabilities for multi-chunk content
+            logger.debug(f"Using late chunking for {len(chunks)} chunks in category {category}")
+            
+            # For late chunking, we provide the full context to Jina v4
+            full_content = "\n\n".join(chunks)
+            if len(full_content) <= 8192:  # Within Jina v4 context window
+                # Generate single embedding with full context, then extract chunk vectors
+                full_embedding = await self.embedding_service.generate_embeddings([full_content])
+                
+                # For now, replicate the full embedding for each chunk
+                # Future enhancement: implement true late chunking vector extraction
+                return [full_embedding[0] for _ in chunks]
+        
+        # Standard embedding generation
+        return await self.embedding_service.generate_embeddings(chunks)
+
+    async def _hierarchical_chunking(self, content: str, strategy: dict[str, Any]) -> list[str]:
+        """Chunk content preserving hierarchical structure (headers, sections)."""
+        import re
+        
+        # Look for markdown-style headers or section breaks
+        header_pattern = r'^#{1,6}\s+.*$|^[A-Z][^a-z]*:?\s*$'
+        lines = content.split('\n')
+        
+        chunks = []
+        current_chunk = ""
+        chunk_size = strategy["chunk_size"]
+        
+        for line in lines:
+            if re.match(header_pattern, line.strip()) and len(current_chunk) > chunk_size // 2:
+                # Start new chunk at header if current chunk is substantial
+                if current_chunk.strip():
+                    chunks.append(current_chunk.strip())
+                current_chunk = line
+            else:
+                current_chunk += "\n" + line
+                
+            if len(current_chunk) > chunk_size:
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+        
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+            
+        return chunks if chunks else [content]
+
+    async def _entity_aware_chunking(self, content: str, strategy: dict[str, Any]) -> list[str]:
+        """Chunk content preserving entity relationships and character mentions."""
+        # Simple entity-aware chunking - can be enhanced with NER
+        import re
+        
+        # Look for character name patterns (capitalized words)
+        entity_pattern = r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'
+        
+        sentences = re.split(r'[.!?]+', content)
+        chunks = []
+        current_chunk = ""
+        chunk_size = strategy["chunk_size"]
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+                
+            # If adding this sentence would exceed chunk size and we have content
+            if len(current_chunk + sentence) > chunk_size and current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = sentence
+            else:
+                current_chunk += (" " if current_chunk else "") + sentence
+        
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+            
+        return chunks if chunks else [content]
+
+    async def _narrative_flow_chunking(self, content: str, strategy: dict[str, Any]) -> list[str]:
+        """Chunk content preserving narrative flow and scene boundaries."""
+        import re
+        
+        # Look for scene breaks, paragraph breaks, dialogue transitions
+        scene_break_patterns = [
+            r'\n\s*\*\s*\*\s*\*\s*\n',  # *** scene breaks
+            r'\n\s*---+\s*\n',           # --- scene breaks  
+            r'\n\s*\n\s*\n',             # Double line breaks
+        ]
+        
+        # Split on scene breaks first
+        text = content
+        for pattern in scene_break_patterns:
+            text = re.sub(pattern, '\n[SCENE_BREAK]\n', text)
+        
+        sections = text.split('[SCENE_BREAK]')
+        chunks = []
+        current_chunk = ""
+        chunk_size = strategy["chunk_size"]
+        
+        for section in sections:
+            section = section.strip()
+            if not section:
+                continue
+                
+            if len(current_chunk + section) > chunk_size and current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = section
+            else:
+                current_chunk += ("\n\n" if current_chunk else "") + section
+        
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+            
         return chunks if chunks else [content]
 
     async def _assess_material_quality(

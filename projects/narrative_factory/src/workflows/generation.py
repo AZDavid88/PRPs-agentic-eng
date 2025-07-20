@@ -106,7 +106,7 @@ async def director_task(chapter_seed: str, active_characters: Optional[list[str]
 
 
 @task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=2))
-def tactician_task(director_job_id: str) -> str:
+async def tactician_task(director_job_id: str) -> str:
     """Execute Tactician agent using approved Director output.
 
     Args:
@@ -137,7 +137,7 @@ def tactician_task(director_job_id: str) -> str:
 
         # Execute Tactician agent
         tactician = TacticianAgent()
-        chapter_blueprint = tactician.execute(strategic_brief)
+        chapter_blueprint = await tactician.execute(strategic_brief)
 
         # Save output and mark as pending approval
         job_store.update_job_as_pending(job_id, chapter_blueprint.model_dump())
@@ -156,7 +156,7 @@ def tactician_task(director_job_id: str) -> str:
 
 
 @task(retries=2, retry_delay_seconds=exponential_backoff(backoff_factor=2))
-def weaver_task(tactician_job_id: str) -> str:
+async def weaver_task(tactician_job_id: str) -> str:
     """Execute Weaver agent (automated, no approval needed).
 
     Args:
@@ -181,7 +181,7 @@ def weaver_task(tactician_job_id: str) -> str:
 
         # Execute Weaver agent
         weaver = WeaverAgent()
-        chapter_text = weaver.execute(chapter_blueprint)
+        chapter_text = await weaver.execute(chapter_blueprint)
 
         # Save final output (no approval needed for Weaver)
         job_id = job_store.create_job(
@@ -278,7 +278,7 @@ async def initial_generation_flow(chapter_seed: str, active_characters: Optional
 
 
 @flow(name="Continue Generation Flow", log_prints=True)
-def continue_generation_flow(director_job_id: str) -> str:
+async def continue_generation_flow(director_job_id: str) -> str:
     """Continue flow: Tactician task after Director approval, then pause for approval.
 
     Args:
@@ -292,7 +292,7 @@ def continue_generation_flow(director_job_id: str) -> str:
     logger.info(f"Continuing generation with approved Director job: {director_job_id}")
 
     # Execute Tactician task
-    tactician_job_id = tactician_task(director_job_id)
+    tactician_job_id = await tactician_task(director_job_id)
 
     logger.info(f"Tactician task complete. Job ID: {tactician_job_id}")
     logger.info("HUMAN REVIEW REQUIRED")
@@ -322,7 +322,7 @@ async def finalize_generation_flow(tactician_job_id: str, story_id: Optional[str
         raise ValueError(f"Tactician job {tactician_job_id} not approved")
 
     # Execute Weaver task
-    chapter_text = weaver_task(tactician_job_id)
+    chapter_text = await weaver_task(tactician_job_id)
 
     # Execute Canonist task for final validation and state management
     canonist_results = await canonist_task(chapter_text, tactician_output.output_payload, story_id)
@@ -1303,7 +1303,7 @@ async def full_generation_flow(
         return {"status": "pending_director_approval", "job_id": director_job_id}
 
     # Step 2: Tactician
-    tactician_job_id = tactician_task(director_job_id)
+    tactician_job_id = await tactician_task(director_job_id)
 
     if auto_approve:
         job_store.approve_job(tactician_job_id)
@@ -1316,7 +1316,7 @@ async def full_generation_flow(
     tactician_output = job_store.get_job(tactician_job_id)
     if not tactician_output:
         raise ValueError(f"Tactician job {tactician_job_id} not found")
-    chapter_text = weaver_task(tactician_job_id)
+    chapter_text = await weaver_task(tactician_job_id)
     final_results = await canonist_task(chapter_text, tactician_output.output_payload, story_id)
 
     logger.info("Full generation complete!")

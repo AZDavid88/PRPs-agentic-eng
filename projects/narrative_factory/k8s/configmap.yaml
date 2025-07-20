@@ -1,0 +1,349 @@
+# ConfigMap for non-sensitive configuration
+# CodeFarm T04 Production Optimization Implementation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: narrative-factory-config
+  labels:
+    app: narrative-factory
+    component: config
+data:
+  # Application configuration
+  environment: "production"
+  log_level: "INFO"
+  debug: "false"
+  
+  # Service URLs (non-sensitive)
+  qdrant-url: "http://qdrant:6333"
+  
+  # Performance settings
+  max-workers: "4"
+  worker-timeout: "60"
+  keep-alive: "5"
+  
+  # Connection limits
+  max-connections-per-user: "5"
+  redis-max-connections: "10"
+  
+  # Monitoring configuration
+  prometheus-enabled: "true"
+  metrics-path: "/metrics"
+  health-check-path: "/health"
+  readiness-check-path: "/ready"
+  
+  # WebSocket configuration
+  websocket-max-connections: "100"
+  websocket-heartbeat-interval: "30"
+  
+  # Cache configuration
+  cache-default-ttl: "3600"
+  cache-max-size: "100MB"
+  
+  # Agent configuration
+  agent-timeout: "300"
+  agent-max-retries: "3"
+  
+  # Memory configuration
+  memory-spotlight-limit: "5"
+  memory-ambient-limit: "10"
+  
+  # Security settings
+  secure-cookies: "true"
+  cors-max-age: "86400"
+  
+---
+# Application configuration file
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: narrative-factory-app-config
+  labels:
+    app: narrative-factory
+    component: app-config
+data:
+  app.json: |
+    {
+      "title": "Narrative Factory API",
+      "version": "1.0.0",
+      "description": "AI-powered narrative generation system",
+      "contact": {
+        "name": "Development Team",
+        "email": "dev@narrativefactory.ai"
+      },
+      "license": {
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT"
+      },
+      "servers": [
+        {
+          "url": "/api/v1",
+          "description": "Production API"
+        }
+      ],
+      "features": {
+        "websockets": true,
+        "metrics": true,
+        "health_checks": true,
+        "rate_limiting": true,
+        "caching": true
+      },
+      "limits": {
+        "request_timeout": 60,
+        "max_payload_size": "10MB",
+        "rate_limit_per_minute": 100
+      }
+    }
+  
+  logging.yaml: |
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+      standard:
+        format: '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        datefmt: '%Y-%m-%d %H:%M:%S'
+      json:
+        format: '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s", "module": "%(module)s", "function": "%(funcName)s", "line": %(lineno)d}'
+        datefmt: '%Y-%m-%dT%H:%M:%S%z'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        level: INFO
+        formatter: json
+        stream: ext://sys.stdout
+      error_console:
+        class: logging.StreamHandler
+        level: ERROR
+        formatter: json
+        stream: ext://sys.stderr
+    loggers:
+      narrative_factory:
+        level: INFO
+        handlers: [console]
+        propagate: false
+      uvicorn:
+        level: INFO
+        handlers: [console]
+        propagate: false
+      uvicorn.error:
+        level: INFO
+        handlers: [error_console]
+        propagate: false
+      uvicorn.access:
+        level: INFO
+        handlers: [console]
+        propagate: false
+    root:
+      level: INFO
+      handlers: [console]
+
+---
+# Redis configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  labels:
+    app: redis
+    component: config
+data:
+  redis.conf: |
+    # Redis production configuration
+    bind 0.0.0.0
+    port 6379
+    timeout 0
+    tcp-keepalive 60
+    tcp-backlog 511
+    
+    # Memory management
+    maxmemory 256mb
+    maxmemory-policy allkeys-lru
+    
+    # Persistence (disabled for cache-only usage)
+    save ""
+    appendonly no
+    
+    # Security
+    protected-mode yes
+    
+    # Performance
+    tcp-nodelay yes
+    databases 16
+    
+    # Logging
+    loglevel notice
+    logfile ""
+    
+    # Client output buffer limits
+    client-output-buffer-limit normal 0 0 0
+    client-output-buffer-limit replica 256mb 64mb 60
+    client-output-buffer-limit pubsub 32mb 8mb 60
+
+---
+# Qdrant configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qdrant-config
+  labels:
+    app: qdrant
+    component: config
+data:
+  config.yaml: |
+    log_level: INFO
+    
+    service:
+      http_port: 6333
+      grpc_port: 6334
+      enable_cors: true
+      max_request_size_mb: 32
+      max_workers: 4
+    
+    storage:
+      storage_path: ./storage
+      snapshots_path: ./snapshots
+      temp_path: ./temp
+      on_disk_payload: true
+      performance:
+        max_search_threads: 4
+        max_optimization_threads: 2
+    
+    cluster:
+      enabled: false
+    
+    telemetry:
+      disabled: true
+
+---
+# Nginx configuration for reverse proxy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  labels:
+    app: nginx
+    component: config
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+    
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+    
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        # Logging format
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for" '
+                        'rt=$request_time uct="$upstream_connect_time" '
+                        'uht="$upstream_header_time" urt="$upstream_response_time"';
+        
+        access_log /var/log/nginx/access.log main;
+        
+        # Performance settings
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        
+        # Gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/json
+            application/javascript
+            application/xml+rss
+            application/atom+xml
+            image/svg+xml;
+        
+        # Rate limiting
+        limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+        limit_req_zone $binary_remote_addr zone=websocket:10m rate=5r/s;
+        
+        # Upstream configuration
+        upstream narrative_factory {
+            least_conn;
+            server narrative-factory-service:80 max_fails=3 fail_timeout=30s;
+        }
+        
+        server {
+            listen 80;
+            server_name _;
+            
+            # Security headers
+            add_header X-Frame-Options DENY;
+            add_header X-Content-Type-Options nosniff;
+            add_header X-XSS-Protection "1; mode=block";
+            add_header Referrer-Policy strict-origin-when-cross-origin;
+            add_header Content-Security-Policy "default-src 'self'";
+            
+            # API endpoints
+            location /api/ {
+                limit_req zone=api burst=20 nodelay;
+                proxy_pass http://narrative_factory;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # Timeouts
+                proxy_connect_timeout 5s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+            
+            # WebSocket endpoints
+            location /ws/ {
+                limit_req zone=websocket burst=10 nodelay;
+                proxy_pass http://narrative_factory;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # WebSocket specific timeouts
+                proxy_connect_timeout 5s;
+                proxy_send_timeout 300s;
+                proxy_read_timeout 300s;
+            }
+            
+            # Health checks
+            location /health {
+                proxy_pass http://narrative_factory;
+                access_log off;
+            }
+            
+            location /ready {
+                proxy_pass http://narrative_factory;
+                access_log off;
+            }
+            
+            # Metrics (internal only)
+            location /metrics {
+                deny all;
+                return 403;
+            }
+            
+            # Default location
+            location / {
+                return 404;
+            }
+        }
+    }

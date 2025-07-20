@@ -1,0 +1,326 @@
+# Kubernetes deployment with auto-scaling and production-grade resource management
+# CodeFarm T04 Production Optimization Implementation
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: narrative-factory
+  labels:
+    app: narrative-factory
+    version: v1.0.0
+    component: api
+    part-of: narrative-factory-system
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: narrative-factory
+  template:
+    metadata:
+      labels:
+        app: narrative-factory
+        version: v1.0.0
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+        config/hash: "PLACEHOLDER_FOR_CONFIG_HASH"  # Updated during deployment
+    spec:
+      # Security context for non-root execution
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Anti-affinity rules for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - narrative-factory
+              topologyKey: kubernetes.io/hostname
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - narrative-factory
+              topologyKey: topology.kubernetes.io/zone
+      
+      # Graceful shutdown configuration
+      terminationGracePeriodSeconds: 30
+      
+      containers:
+      - name: narrative-factory
+        image: narrative-factory:latest
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        
+        # Resource limits and requests based on profiling
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+            ephemeral-storage: "2Gi"
+        
+        # Health checks for reliability
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        # Startup probe for slow-starting applications
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12  # Allow 2 minutes for startup
+          successThreshold: 1
+        
+        # Environment configuration
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: PROMETHEUS_ENABLED
+          value: "true"
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: "/tmp/prometheus-multiproc"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        
+        # Secrets from environment
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: narrative-factory-secrets
+              key: secret-key
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: narrative-factory-secrets
+              key: redis-url
+        - name: QDRANT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: narrative-factory-config
+              key: qdrant-url
+        - name: JINA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: narrative-factory-secrets
+              key: jina-api-key
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: narrative-factory-secrets
+              key: gemini-api-key
+        
+        # Volume mounts
+        volumeMounts:
+        - name: tmp-prometheus
+          mountPath: /tmp/prometheus-multiproc
+        - name: config
+          mountPath: /home/app/config
+          readOnly: true
+        - name: tmp-dir
+          mountPath: /tmp
+        
+        # Security context for container
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+      
+      # Volumes
+      volumes:
+      - name: tmp-prometheus
+        emptyDir:
+          sizeLimit: "100Mi"
+      - name: tmp-dir
+        emptyDir:
+          sizeLimit: "500Mi"
+      - name: config
+        configMap:
+          name: narrative-factory-config
+          defaultMode: 0644
+      
+      # Service account for RBAC
+      serviceAccountName: narrative-factory
+      
+      # DNS configuration for faster lookups
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: narrative-factory-service
+  labels:
+    app: narrative-factory
+    component: api
+spec:
+  type: ClusterIP
+  selector:
+    app: narrative-factory
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  sessionAffinity: None
+
+---
+# Service for internal metrics scraping
+apiVersion: v1
+kind: Service
+metadata:
+  name: narrative-factory-metrics
+  labels:
+    app: narrative-factory
+    component: metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: narrative-factory
+  ports:
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+
+---
+# Horizontal Pod Autoscaler for production scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: narrative-factory-hpa
+  labels:
+    app: narrative-factory
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: narrative-factory
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5 minutes
+      policies:
+      - type: Percent
+        value: 10  # Max 10% pods removed per minute
+        periodSeconds: 60
+      - type: Pods
+        value: 1   # Max 1 pod removed per minute
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60   # 1 minute
+      policies:
+      - type: Percent
+        value: 50  # Max 50% increase per minute
+        periodSeconds: 60
+      - type: Pods
+        value: 4   # Max 4 pods added per minute
+        periodSeconds: 60
+      selectPolicy: Max
+
+---
+# Pod Disruption Budget for availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: narrative-factory-pdb
+  labels:
+    app: narrative-factory
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: narrative-factory
+
+---
+# Service Account for RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: narrative-factory
+  labels:
+    app: narrative-factory
+automountServiceAccountToken: false  # Security best practice

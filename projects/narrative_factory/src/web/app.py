@@ -80,6 +80,11 @@ app.include_router(
     tags=["Material Ingestion"]
 )
 
+# Add WebSocket functionality
+from src.web.websocket_integration import setup_websocket_routes, update_cors_for_websockets
+setup_websocket_routes(app)
+update_cors_for_websockets(app)
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request) -> HTMLResponse:
     """Serve the main application page."""

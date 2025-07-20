@@ -755,6 +755,343 @@ class QdrantService:
             logger.error(f"Failed to delete collection {collection_name}: {e}")
             return False
 
+    async def store_embeddings_bulk(
+        self,
+        embeddings: list[list[float]],
+        collection: str,
+        metadata: dict[str, Any],
+        create_collection_if_missing: bool = True,
+        check_duplicates: bool = True
+    ) -> dict[str, Any]:
+        """
+        Store multiple embeddings with metadata in Qdrant using bulk operations.
+        
+        This method bridges the API gap between MemoryService expectations
+        and QdrantService implementation patterns with duplicate prevention.
+
+        Args:
+            embeddings: List of embedding vectors to store
+            collection: Collection name (will be used as collection_name)
+            metadata: Shared metadata to apply to all points
+            create_collection_if_missing: Whether to create collection if it doesn't exist
+            check_duplicates: Whether to check for and skip duplicate content_hash
+
+        Returns:
+            Dictionary with storage result information
+        """
+        try:
+            collection_name = collection  # Alias for clarity
+            
+            # Handle collection creation if needed
+            if create_collection_if_missing:
+                async with self.connection_pool.get_connection() as client:
+                    exists = await client.collection_exists(collection_name)
+                    if not exists:
+                        # Determine vector size from first embedding
+                        vector_size = len(embeddings[0]) if embeddings else self.embedding_dimension
+                        
+                        logger.info(f"Creating collection {collection_name} with vector size {vector_size}")
+                        await client.create_collection(
+                            collection_name=collection_name,
+                            vectors_config=VectorParams(
+                                size=vector_size,
+                                distance=Distance.COSINE
+                            )
+                        )
+                        logger.info(f"Collection {collection_name} created successfully")
+
+            if not embeddings:
+                logger.warning("No embeddings provided for bulk storage")
+                return {
+                    "status": "success",
+                    "points_stored": 0,
+                    "collection": collection_name,
+                    "message": "No embeddings to store"
+                }
+
+            # Check for duplicates if requested
+            content_hash = metadata.get('content_hash')
+            duplicate_check_result = None
+            
+            if check_duplicates and content_hash:
+                try:
+                    async with self.connection_pool.get_connection() as client:
+                        # Check if this content_hash already exists
+                        existing_points = await client.scroll(
+                            collection_name=collection_name,
+                            scroll_filter=Filter(
+                                must=[
+                                    FieldCondition(
+                                        key="content_hash",
+                                        match=MatchValue(value=content_hash)
+                                    )
+                                ]
+                            ),
+                            limit=1,
+                            with_payload=True
+                        )
+                        
+                        if existing_points[0]:  # Points found
+                            existing_point = existing_points[0][0]
+                            duplicate_check_result = {
+                                "duplicate_found": True,
+                                "existing_point_id": str(existing_point.id),
+                                "existing_material_id": existing_point.payload.get('material_id', 'unknown'),
+                                "existing_created_at": existing_point.payload.get('created_at', 'unknown')
+                            }
+                            
+                            logger.info(f"Duplicate content detected: {content_hash} already exists in {collection_name}")
+                            return {
+                                "status": "duplicate_skipped",
+                                "points_stored": 0,
+                                "collection": collection_name,
+                                "duplicate_info": duplicate_check_result,
+                                "message": f"Content with hash {content_hash} already exists"
+                            }
+                            
+                except Exception as e:
+                    logger.warning(f"Duplicate check failed, proceeding with storage: {e}")
+                    # Continue with storage if duplicate check fails
+
+            # Create PointStruct objects following Context7 patterns
+            points = []
+            import uuid
+            
+            for idx, embedding in enumerate(embeddings):
+                # Generate unique UUID for point ID (Qdrant requirement)
+                point_id = str(uuid.uuid4())
+                
+                # Create point-specific metadata
+                point_metadata = {
+                    **metadata,  # Include all shared metadata
+                    "chunk_index": idx,
+                    "total_chunks": len(embeddings),
+                    "point_id": point_id
+                }
+                
+                # Create PointStruct following Context7 documentation patterns
+                point = PointStruct(
+                    id=point_id,
+                    vector=embedding,
+                    payload=point_metadata
+                )
+                points.append(point)
+
+            # Perform bulk upsert using existing connection pool
+            async with self.connection_pool.get_connection() as client:
+                operation_info = await client.upsert(
+                    collection_name=collection_name,
+                    points=points,
+                    wait=True  # Wait for operation completion for reliability
+                )
+
+            logger.info(f"Successfully stored {len(points)} embeddings in collection {collection_name}")
+
+            # Return structured result matching MemoryService expectations
+            return {
+                "status": "success", 
+                "points_stored": len(points),
+                "collection": collection_name,
+                "operation_info": {
+                    "operation_id": getattr(operation_info, 'operation_id', None),
+                    "status": getattr(operation_info, 'status', 'completed')
+                },
+                "metadata": {
+                    "embedding_dimensions": len(embeddings[0]) if embeddings else 0,
+                    "total_embeddings": len(embeddings),
+                    "base_material_id": metadata.get('material_id', 'unknown')
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to store embeddings bulk in collection {collection}: {e}")
+            raise DatabaseError(f"Bulk embedding storage failed: {e}") from e
+
+    async def delete_points_by_filter(
+        self,
+        collection_name: str,
+        filter_condition: Filter
+    ) -> dict[str, Any]:
+        """
+        Delete points from a collection based on filter conditions.
+        
+        Args:
+            collection_name: Name of the collection
+            filter_condition: Qdrant Filter object specifying which points to delete
+            
+        Returns:
+            Dictionary with deletion results
+        """
+        try:
+            async with self.connection_pool.get_connection() as client:
+                result = await client.delete(
+                    collection_name=collection_name,
+                    points_selector=filter_condition,
+                    wait=True
+                )
+                
+            logger.info(f"Deleted points from collection {collection_name} using filter")
+            return {
+                "status": "success",
+                "operation_id": getattr(result, 'operation_id', None),
+                "collection": collection_name
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to delete points from {collection_name}: {e}")
+            raise DatabaseError(f"Point deletion failed: {e}") from e
+
+    async def remove_duplicates_by_content_hash(
+        self,
+        collection_name: str,
+        dry_run: bool = True
+    ) -> dict[str, Any]:
+        """
+        Remove duplicate points based on content_hash, keeping the most recent.
+        
+        Args:
+            collection_name: Name of the collection to deduplicate
+            dry_run: If True, only report what would be deleted without actually deleting
+            
+        Returns:
+            Dictionary with deduplication results
+        """
+        try:
+            # Scroll through all points to find duplicates
+            async with self.connection_pool.get_connection() as client:
+                # Get all points with their payloads
+                scroll_result = await client.scroll(
+                    collection_name=collection_name,
+                    limit=10000,  # Adjust based on collection size
+                    with_payload=True
+                )
+                
+                points = scroll_result[0]  # First element contains the points
+                
+            # Group points by content_hash
+            hash_groups = {}
+            for point in points:
+                content_hash = point.payload.get('content_hash')
+                if content_hash:
+                    if content_hash not in hash_groups:
+                        hash_groups[content_hash] = []
+                    hash_groups[content_hash].append(point)
+            
+            # Find duplicates (groups with more than one point)
+            duplicates_to_remove = []
+            kept_points = []
+            
+            for content_hash, point_group in hash_groups.items():
+                if len(point_group) > 1:
+                    # Sort by created_at timestamp, keep the most recent
+                    sorted_points = sorted(
+                        point_group,
+                        key=lambda p: p.payload.get('created_at', ''),
+                        reverse=True
+                    )
+                    
+                    # Keep the first (most recent), mark others for deletion
+                    kept_points.append(sorted_points[0])
+                    duplicates_to_remove.extend(sorted_points[1:])
+                else:
+                    kept_points.extend(point_group)
+            
+            result = {
+                "status": "success",
+                "collection": collection_name,
+                "total_points": len(points),
+                "unique_content_hashes": len(hash_groups),
+                "duplicates_found": len(duplicates_to_remove),
+                "points_to_keep": len(kept_points),
+                "dry_run": dry_run,
+                "duplicate_details": [
+                    {
+                        "id": str(point.id),
+                        "material_id": point.payload.get('material_id', 'unknown'),
+                        "created_at": point.payload.get('created_at', 'unknown'),
+                        "content_hash": point.payload.get('content_hash', 'unknown')
+                    }
+                    for point in duplicates_to_remove
+                ]
+            }
+            
+            if not dry_run and duplicates_to_remove:
+                # Actually delete the duplicate points
+                point_ids_to_delete = [str(point.id) for point in duplicates_to_remove]
+                
+                async with self.connection_pool.get_connection() as client:
+                    delete_result = await client.delete(
+                        collection_name=collection_name,
+                        points_selector=point_ids_to_delete,
+                        wait=True
+                    )
+                
+                result["deletion_operation_id"] = getattr(delete_result, 'operation_id', None)
+                logger.info(f"Removed {len(point_ids_to_delete)} duplicate points from {collection_name}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to remove duplicates from {collection_name}: {e}")
+            raise DatabaseError(f"Deduplication failed: {e}") from e
+
+    async def cleanup_test_collections(self, confirm: bool = False) -> dict[str, Any]:
+        """
+        Clean up test collections created during development/testing.
+        
+        Args:
+            confirm: Must be True to actually delete collections
+            
+        Returns:
+            Dictionary with cleanup results
+        """
+        test_collection_patterns = [
+            'test_',
+            'materials_test',
+            'test_uuid_fix',
+            'test_materials_character_sheet'
+        ]
+        
+        try:
+            collections = await self.list_collections()
+            test_collections = [
+                col for col in collections 
+                if any(pattern in col for pattern in test_collection_patterns)
+            ]
+            
+            result = {
+                "status": "success",
+                "test_collections_found": test_collections,
+                "collections_to_delete": len(test_collections),
+                "confirmed": confirm
+            }
+            
+            if confirm and test_collections:
+                deleted_collections = []
+                failed_deletions = []
+                
+                for collection in test_collections:
+                    try:
+                        success = await self.delete_collection(collection)
+                        if success:
+                            deleted_collections.append(collection)
+                        else:
+                            failed_deletions.append(collection)
+                    except Exception as e:
+                        failed_deletions.append(f"{collection}: {e}")
+                
+                result.update({
+                    "deleted_collections": deleted_collections,
+                    "failed_deletions": failed_deletions,
+                    "successfully_deleted": len(deleted_collections)
+                })
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup test collections: {e}")
+            raise DatabaseError(f"Test cleanup failed: {e}") from e
+
     async def close(self) -> None:
         """Close the Qdrant connection pool and embedding service."""
         try:
