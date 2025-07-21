@@ -22,7 +22,7 @@ wheels/
 MANIFEST
 
 # Environment
-.env
+.env*
 .venv
 env/
 venv/
