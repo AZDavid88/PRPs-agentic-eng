@@ -1907,6 +1907,100 @@ def _display_validation_results_table(quality_results, passed_count, failed_coun
         console.print(failed_table)
 
 
+# === MEMORY MANAGEMENT COMMANDS ===
+
+@app.command(name="memory-list")
+def memory_list(
+    story_id: str = typer.Option(None, "--story-id", help="Filter by story ID"),
+    content_type: str = typer.Option("all", "--type", help="Filter by type: character_sheet, location, etc."),
+    search: str = typer.Option("", "--search", help="Search content by keywords"),
+    limit: int = typer.Option(50, "--limit", help="Maximum results to show"),
+    output_format: str = typer.Option("table", "--format", help="Output format: table, json")
+):
+    """
+    List content stored in memory/vector database.
+    
+    Examples:
+        factory memory-list --story-id "my_serial" --type "character_sheet"
+        factory memory-list --search "Kael" --format json
+        factory memory-list --type "location" --limit 10
+    """
+    try:
+        # Validation (follow existing pattern)
+        if limit < 1 or limit > 200:
+            console.print("❌ Limit must be between 1 and 200", style="bold red")
+            raise typer.Exit(1)
+        
+        if output_format not in ["table", "json"]:
+            console.print("❌ Output format must be: table or json", style="bold red")
+            raise typer.Exit(1)
+        
+        # Execute (follow existing async pattern)
+        asyncio.run(_run_memory_list(story_id, content_type, search, limit, output_format))
+        
+    except Exception as e:
+        console.print(f"❌ Memory list failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command(name="memory-remove")
+def memory_remove(
+    doc_id: str = typer.Argument(..., help="Document ID to remove"),
+    confirm: bool = typer.Option(False, "--confirm", help="Skip confirmation prompt"),
+    collection: str = typer.Option("world_bible", "--collection", help="Collection to remove from")
+):
+    """
+    Remove content from memory/vector database.
+    
+    Examples:
+        factory memory-remove doc_abc123 --confirm
+        factory memory-remove doc_abc123 --collection story_so_far
+    """
+    try:
+        # Safety confirmation (follow existing patterns)
+        if not confirm:
+            if not typer.confirm(f"Remove document {doc_id} from {collection}?"):
+                console.print("❌ Removal cancelled", style="bold yellow")
+                return
+        
+        # Execute removal
+        asyncio.run(_run_memory_remove(doc_id, collection))
+        
+    except Exception as e:
+        console.print(f"❌ Memory removal failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command(name="memory-update")
+def memory_update(
+    doc_id: str = typer.Argument(..., help="Document ID to update"),
+    content_file: str = typer.Option(None, "--file", help="File with new content"),
+    inline_content: str = typer.Option("", "--content", help="Inline content update"),
+    collection: str = typer.Option("world_bible", "--collection", help="Collection to update"),
+    merge_metadata: bool = typer.Option(True, "--merge-metadata", help="Preserve existing metadata")
+):
+    """
+    Update existing content in memory/vector database.
+    
+    Examples:
+        factory memory-update doc_abc123 --file updated_kael.txt
+        factory memory-update doc_abc123 --content "Kael now has fire magic"
+    """
+    try:
+        # Validation (follow existing patterns)
+        if not content_file and not inline_content:
+            console.print("❌ Must provide either --file or --content", style="bold red")
+            raise typer.Exit(1)
+        
+        if content_file and inline_content:
+            console.print("❌ Cannot use both --file and --content", style="bold red")
+            raise typer.Exit(1)
+        
+        # Execute update
+        asyncio.run(_run_memory_update(doc_id, content_file, inline_content, collection, merge_metadata))
+        
+    except Exception as e:
+        console.print(f"❌ Memory update failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
 # === PHASE 3: WEB INTERFACE COMMANDS ===
 
 @app.command()
@@ -2011,3 +2105,670 @@ def web_status():
     except Exception as e:
         console.print(f"❌ [bold red]Status check failed:[/bold red] {e}")
         raise typer.Exit(1)
+
+
+# === MEMORY MANAGEMENT IMPLEMENTATION FUNCTIONS ===
+
+async def _run_memory_list(story_id, content_type, search, limit, output_format):
+    """Implementation for memory-list command."""
+    from datetime import datetime
+    
+    console.print("🔍 Searching memory database...")
+    
+    # Use extended QdrantService
+    qdrant = QdrantService()
+    
+    # Build filters
+    filters = {}
+    if story_id:
+        filters["story_id"] = story_id
+    if content_type != "all":
+        filters["doc_type"] = content_type
+    
+    # Search using new method
+    if filters:
+        results = await qdrant.search_with_filters(filters, "world_bible", limit)
+    elif search:
+        # Use existing search method for text search
+        results = await qdrant.search_by_content(search, "world_bible", limit)
+        # Convert to consistent format
+        results = [
+            {
+                "doc_id": result.get("doc_id", result.get("id", "unknown")),
+                "content": result.get("content", ""),
+                "doc_type": result.get("doc_type", "unknown"),
+                "story_id": result.get("story_id", None),
+                "metadata": result
+            }
+            for result in results
+        ]
+    else:
+        # Get all documents (use filter with no conditions)
+        results = await qdrant.search_with_filters({}, "world_bible", limit)
+    
+    # Display results (follow existing Rich patterns)
+    if output_format == "table":
+        table = Table(title=f"Memory Database Contents ({len(results)} results)")
+        table.add_column("Doc ID", style="cyan", width=15)
+        table.add_column("Type", style="magenta", width=15)
+        table.add_column("Content Preview", style="white", width=50)
+        table.add_column("Story ID", style="green", width=15)
+        
+        for result in results:
+            doc_id = result.get("doc_id", "unknown")[:12] + "..."
+            doc_type = result.get("doc_type", "unknown")
+            content = result.get("content", "")[:47] + "..." if len(result.get("content", "")) > 50 else result.get("content", "")
+            story = result.get("story_id") or "none"
+            table.add_row(doc_id, doc_type, content, story)
+        
+        console.print(table)
+        console.print(f"💡 Use [bold cyan]factory memory-remove <doc_id>[/bold cyan] to remove content")
+    else:
+        # JSON output
+        from rich.syntax import Syntax
+        json_output = json.dumps(results, indent=2)
+        syntax = Syntax(json_output, "json", theme="monokai", line_numbers=False)
+        console.print(syntax)
+
+async def _run_memory_remove(doc_id, collection):
+    """Implementation for memory-remove command."""
+    console.print(f"🗑️  Removing document: [bold cyan]{doc_id}[/bold cyan] from [bold magenta]{collection}[/bold magenta]")
+    
+    # Use extended QdrantService
+    qdrant = QdrantService()
+    
+    # Remove using new method
+    success = await qdrant.delete_document(doc_id, collection)
+    
+    if success:
+        console.print("✅ Document removed successfully", style="bold green")
+    else:
+        console.print("❌ Document removal failed", style="bold red")
+        raise typer.Exit(1)
+
+async def _run_memory_update(doc_id, content_file, inline_content, collection, merge_metadata):
+    """Implementation for memory-update command."""
+    from datetime import datetime
+    
+    # Get content from file or inline
+    if content_file:
+        try:
+            with open(content_file, 'r', encoding='utf-8') as f:
+                new_content = f.read()
+            console.print(f"📄 Read content from [bold cyan]{content_file}[/bold cyan]")
+        except Exception as e:
+            console.print(f"❌ Failed to read file {content_file}: {e}", style="bold red")
+            raise typer.Exit(1)
+    else:
+        new_content = inline_content
+    
+    console.print(f"🔄 Updating document: [bold cyan]{doc_id}[/bold cyan] in [bold magenta]{collection}[/bold magenta]")
+    
+    # Use extended QdrantService
+    qdrant = QdrantService()
+    
+    # Update using new method (preserves metadata if merge_metadata=True)
+    metadata = {"updated_at": datetime.now().isoformat()} if merge_metadata else None
+    success = await qdrant.update_document(doc_id, new_content, collection, metadata)
+    
+    if success:
+        console.print("✅ Document updated successfully", style="bold green")
+        console.print(f"💡 Use [bold cyan]factory memory-list --search {doc_id[:8]}[/bold cyan] to verify")
+    else:
+        console.print("❌ Document update failed", style="bold red")
+        raise typer.Exit(1)
+
+
+# === INTERACTIVE JOB REVIEW COMMANDS ===
+
+@app.command(name="review-interactive")
+def review_interactive(
+    job_id: str = typer.Argument(..., help="Job ID to review interactively")
+):
+    """
+    Interactive review of agent output with edit options.
+    
+    Examples:
+        factory review-interactive job_abc123
+    """
+    try:
+        # Get job details
+        job = job_store.get_job(job_id)
+        if not job:
+            console.print(f"❌ Job {job_id} not found", style="bold red")
+            raise typer.Exit(1)
+        
+        # Display job information
+        console.print(Panel(
+            f"Agent: [bold magenta]{job.agent}[/bold magenta]\n"
+            f"Status: [bold yellow]{job.status}[/bold yellow]\n"
+            f"Created: {job.created_at}",
+            title=f"📋 Job {job_id[:8]}...",
+            border_style="blue"
+        ))
+        
+        if not job.output_payload:
+            console.print("⚠️ No output available yet", style="bold yellow")
+            return
+        
+        # Display output with syntax highlighting
+        console.print("\n📄 Agent Output:")
+        output_json = json.dumps(job.output_payload, indent=2)
+        from rich.syntax import Syntax
+        syntax = Syntax(output_json, "json", theme="monokai", line_numbers=True)
+        console.print(Panel(syntax, title="Output", border_style="green"))
+        
+        # Interactive options
+        console.print("\n🎛️  What would you like to do?")
+        choices = [
+            "approve: Approve and continue workflow",
+            "reject: Reject with feedback", 
+            "revise: Request specific revisions",
+            "alternatives: Generate alternative versions",
+            "exit: Exit without action"
+        ]
+        
+        for i, choice in enumerate(choices, 1):
+            console.print(f"  {i}. {choice}")
+        
+        from rich.prompt import Prompt
+        choice = Prompt.ask("Choose an option", choices=["1", "2", "3", "4", "5"], default="1")
+        
+        if choice == "1":
+            # Approve (use existing method)
+            approved_output = job_store.approve_job(job_id)
+            if approved_output:
+                console.print("✅ Job approved successfully", style="bold green")
+            else:
+                console.print("❌ Approval failed", style="bold red")
+        
+        elif choice == "2":
+            # Reject with feedback
+            feedback = Prompt.ask("Enter rejection feedback")
+            result = job_store.reject_job(job_id, feedback)
+            if result:
+                console.print("❌ Job rejected with feedback", style="bold red")
+            else:
+                console.print("❌ Rejection failed", style="bold red")
+        
+        elif choice == "3":
+            # Request revision
+            _handle_revision_request(job_id, job.agent)
+        
+        elif choice == "4":
+            # Generate alternatives
+            _handle_alternatives_request(job_id)
+        
+        else:
+            console.print("👋 Exiting without action")
+        
+    except Exception as e:
+        console.print(f"❌ Interactive review failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command()
+def revise(
+    job_id: str = typer.Argument(..., help="Job ID to request revision"),
+    feedback: str = typer.Option(..., "--feedback", help="Specific revision request"),
+    section: str = typer.Option("all", "--section", help="Section to revise: all, emotional_arc, key_events, etc.")
+):
+    """
+    Request specific revisions to agent output.
+    
+    Examples:
+        factory revise job_abc123 --feedback "Make the romance more subtle"
+        factory revise job_abc123 --feedback "Add more action" --section "key_events"
+        factory revise job_abc123 --feedback "Slow down pacing" --section "emotional_turning_point"
+    """
+    try:
+        console.print(f"🔄 Requesting revision for job: [bold cyan]{job_id}[/bold cyan]")
+        console.print(f"📝 Feedback: [italic]{feedback}[/italic]")
+        console.print(f"🎯 Section: [bold yellow]{section}[/bold yellow]")
+        
+        # Request revision using extended JobStore
+        revision_job_id = job_store.request_revision(job_id, feedback, section)
+        
+        if revision_job_id:
+            console.print(f"✅ Revision requested successfully", style="bold green")
+            console.print(f"🆔 New revision job: [bold cyan]{revision_job_id}[/bold cyan]")
+            console.print(f"💡 Use [bold cyan]factory status[/bold cyan] to monitor revision progress")
+        else:
+            console.print("❌ Revision request failed", style="bold red")
+            raise typer.Exit(1)
+        
+    except Exception as e:
+        console.print(f"❌ Revision request failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command()
+def alternatives(
+    job_id: str = typer.Argument(..., help="Job ID to generate alternatives for"),
+    count: int = typer.Option(3, "--count", help="Number of alternatives to generate")
+):
+    """
+    Generate alternative versions of agent output.
+    
+    Examples:
+        factory alternatives job_abc123
+        factory alternatives job_abc123 --count 5
+    """
+    try:
+        console.print(f"🎲 Generating {count} alternatives for job: [bold cyan]{job_id}[/bold cyan]")
+        
+        alternative_jobs = []
+        
+        # Generate multiple alternatives
+        for i in range(count):
+            alt_job_id = job_store.create_alternative_job(job_id)
+            if alt_job_id:
+                alternative_jobs.append(alt_job_id)
+                console.print(f"  📋 Alternative {i+1}: [bold cyan]{alt_job_id}[/bold cyan]")
+            else:
+                console.print(f"  ❌ Failed to create alternative {i+1}", style="bold red")
+        
+        if alternative_jobs:
+            console.print(f"✅ Generated {len(alternative_jobs)} alternatives", style="bold green")
+            console.print(f"💡 Use [bold cyan]factory status[/bold cyan] to monitor generation progress")
+            console.print(f"💡 Use [bold cyan]factory review-interactive <job_id>[/bold cyan] to compare options")
+        else:
+            console.print("❌ No alternatives generated", style="bold red")
+            raise typer.Exit(1)
+        
+    except Exception as e:
+        console.print(f"❌ Alternative generation failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+# === HELPER FUNCTIONS ===
+
+def _handle_revision_request(job_id: str, agent: str):
+    """Handle interactive revision request flow."""
+    from rich.prompt import Prompt
+    console.print(f"\n🔄 Requesting revision for {agent} output")
+    
+    # Agent-specific revision options
+    if agent == "Director":
+        sections = ["all", "key_events", "emotional_turning_point", "cliffhanger_concept", "goal"]
+    elif agent == "Tactician":
+        sections = ["all", "chapter_beats", "title_suggestions", "chapter_metadata"]
+    elif agent == "Weaver":
+        sections = ["all", "prose_style", "dialogue", "pacing", "descriptions"]
+    elif agent == "Canonist":
+        sections = ["all", "character_updates", "plot_updates", "tension_state"]
+    else:
+        sections = ["all"]
+    
+    console.print("🎯 Which section needs revision?")
+    for i, section in enumerate(sections, 1):
+        console.print(f"  {i}. {section}")
+    
+    section_choice = Prompt.ask("Choose section", choices=[str(i) for i in range(1, len(sections)+1)], default="1")
+    selected_section = sections[int(section_choice) - 1]
+    
+    feedback = Prompt.ask("Enter specific revision feedback")
+    
+    # Request revision
+    revision_job_id = job_store.request_revision(job_id, feedback, selected_section)
+    
+    if revision_job_id:
+        console.print(f"✅ Revision requested for section: [bold yellow]{selected_section}[/bold yellow]", style="bold green")
+        console.print(f"🆔 New revision job: [bold cyan]{revision_job_id}[/bold cyan]")
+    else:
+        console.print("❌ Revision request failed", style="bold red")
+
+def _handle_alternatives_request(job_id: str):
+    """Handle interactive alternatives generation."""
+    from rich.prompt import Prompt
+    console.print("\n🎲 How many alternatives would you like?")
+    count = Prompt.ask("Number of alternatives", default="3")
+    
+    try:
+        count = int(count)
+        if count < 1 or count > 10:
+            console.print("❌ Count must be between 1 and 10", style="bold red")
+            return
+        
+        alternative_jobs = []
+        
+        with console.status(f"[bold green]Generating {count} alternatives..."):
+            for i in range(count):
+                alt_job_id = job_store.create_alternative_job(job_id)
+                if alt_job_id:
+                    alternative_jobs.append(alt_job_id)
+        
+        if alternative_jobs:
+            console.print(f"✅ Generated {len(alternative_jobs)} alternatives:", style="bold green")
+            for i, alt_id in enumerate(alternative_jobs, 1):
+                console.print(f"  📋 Alternative {i}: [bold cyan]{alt_id}[/bold cyan]")
+        else:
+            console.print("❌ No alternatives generated", style="bold red")
+            
+    except ValueError:
+        console.print("❌ Invalid count specified", style="bold red")
+
+
+# === DYNAMIC CONTENT INJECTION COMMANDS ===
+
+@app.command(name="inject-chat")
+def inject_chat(
+    story_id: str = typer.Option(None, "--story-id", help="Story context for content injection"),
+    session_name: str = typer.Option("default", "--session", help="Chat session name")
+):
+    """
+    Start conversational content injection session.
+    
+    Examples:
+        factory inject-chat --story-id "my_serial"
+        factory inject-chat --session "character_planning"
+    """
+    try:
+        console.print("🤖 Starting conversational content injection session...")
+        console.print(f"📖 Story context: {story_id or 'general'}")
+        console.print(f"💬 Session: {session_name}")
+        
+        # Run conversational session
+        asyncio.run(_run_conversational_injection(story_id, session_name))
+        
+    except Exception as e:
+        console.print(f"❌ Conversational injection failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command(name="add-character")
+def add_character(
+    name: str = typer.Argument(..., help="Character name"),
+    description: str = typer.Option(..., "--description", help="Character description and background"),
+    chapter: int = typer.Option(None, "--at-chapter", help="Target introduction chapter"),
+    role: str = typer.Option("supporting", "--role", help="Character role: protagonist, antagonist, supporting"),
+    story_id: str = typer.Option(None, "--story-id", help="Story to integrate with")
+):
+    """
+    Add new character with AI-assisted integration analysis.
+    
+    Examples:
+        factory add-character "Zara" --description "Former spy turned ally" --at-chapter 45
+        factory add-character "Marcus" --role "antagonist" --description "Corrupt imperial commander"
+        factory add-character "Elena" --description "Healer with secret knowledge" --story-id "my_serial"
+    """
+    try:
+        console.print(f"🧙 Adding character: [bold magenta]{name}[/bold magenta]")
+        console.print(f"📋 Description: [italic]{description}[/italic]")
+        
+        if chapter:
+            console.print(f"📍 Target introduction: Chapter {chapter}")
+        if story_id:
+            console.print(f"📖 Story context: {story_id}")
+        
+        # Run integration analysis
+        asyncio.run(_run_character_integration(name, description, chapter, role, story_id))
+        
+    except Exception as e:
+        console.print(f"❌ Character addition failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command(name="inject-context")
+def inject_context(
+    content: str = typer.Argument(..., help="Context content to inject"),
+    context_type: str = typer.Option("general", "--type", help="Type: character, location, tech, magic, plot"),
+    chapter: int = typer.Option(None, "--from-chapter", help="Chapter to introduce from"),
+    story_id: str = typer.Option(None, "--story-id", help="Story to update"),
+    auto_integrate: bool = typer.Option(False, "--auto", help="Auto-integrate without confirmation")
+):
+    """
+    Inject new context with AI-assisted integration analysis.
+    
+    Examples:
+        factory inject-context "Neural implants are common in the eastern districts" --type "tech" --from-chapter 50
+        factory inject-context "The Crystal Caverns hold ancient secrets" --type "location"  
+        factory inject-context "Magic corruption spreads through bloodlines" --type "magic" --story-id "my_serial"
+    """
+    try:
+        console.print(f"💫 Injecting {context_type} context:")
+        console.print(Panel(content, title="New Context", border_style="blue"))
+        
+        if chapter:
+            console.print(f"📍 From chapter: {chapter}")
+        if story_id:
+            console.print(f"📖 Story context: {story_id}")
+        
+        # Run context integration analysis
+        asyncio.run(_run_context_integration(content, context_type, chapter, story_id, auto_integrate))
+        
+    except Exception as e:
+        console.print(f"❌ Context injection failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+@app.command(name="story-steering")
+def story_steering(
+    direction: str = typer.Argument(..., help="Story direction or theme to introduce"),
+    intensity: str = typer.Option("medium", "--intensity", help="Intensity: subtle, medium, major"),
+    from_chapter: int = typer.Option(None, "--from-chapter", help="Chapter to begin steering"),
+    story_id: str = typer.Option(None, "--story-id", help="Story to steer")
+):
+    """
+    Guide story direction with AI analysis of narrative impact.
+    
+    Examples:
+        factory story-steering "Add more romantic tension" --intensity "subtle"
+        factory story-steering "Introduce cyberpunk elements" --intensity "major" --from-chapter 50
+        factory story-steering "Increase political intrigue" --from-chapter 30
+    """
+    try:
+        console.print(f"🎭 Steering story direction: [bold yellow]{direction}[/bold yellow]")
+        console.print(f"⚡ Intensity: [bold cyan]{intensity}[/bold cyan]")
+        
+        if from_chapter:
+            console.print(f"📍 Starting from chapter: {from_chapter}")
+        
+        # Run story steering analysis
+        asyncio.run(_run_story_steering(direction, intensity, from_chapter, story_id))
+        
+    except Exception as e:
+        console.print(f"❌ Story steering failed: {e}", style="bold red")
+        raise typer.Exit(1)
+
+# === IMPLEMENTATION FUNCTIONS ===
+
+async def _run_conversational_injection(story_id: Optional[str], session_name: str):
+    """Run conversational content injection session."""
+    from src.chat.content_injection_chat import ContentInjectionChatInterface
+    from rich.prompt import Prompt
+    
+    console.print("🎯 Conversational Content Injection")
+    console.print("Type natural language requests like:")
+    console.print("  • 'Add a mysterious character who knows about the ancient magic'")
+    console.print("  • 'I need a dangerous place where characters can be trapped'")
+    console.print("  • 'The story needs some advanced tech that could change everything'")
+    console.print("  • Type 'quit' to exit")
+    console.print()
+    
+    # Create chat session
+    chat_interface = ContentInjectionChatInterface()
+    session_id = await chat_interface.create_injection_session(story_id or "general", "cli_user")
+    
+    console.print(f"✅ Started session: {session_id}")
+    console.print("🗣️ What content would you like to add to your story?")
+    
+    while True:
+        # Get user input
+        try:
+            user_input = Prompt.ask("\n[bold green]You[/bold green]")
+            
+            if user_input.lower() in ['quit', 'exit', 'done']:
+                console.print("👋 Ending conversational injection session")
+                break
+            
+            # Process request
+            console.print("🤔 [italic]Analyzing request...[/italic]")
+            response = await chat_interface.process_injection_request(session_id, user_input)
+            
+            # Display response
+            console.print(f"\n[bold cyan]Director[/bold cyan]: {response}")
+            
+        except KeyboardInterrupt:
+            console.print("\n👋 Session interrupted. Goodbye!")
+            break
+        except Exception as e:
+            console.print(f"❌ Error processing request: {e}", style="bold red")
+
+async def _run_character_integration(name: str, description: str, chapter: Optional[int], role: str, story_id: Optional[str]):
+    """Implementation for character integration."""
+    from src.services.smart_integration import SmartIntegrationService
+    from rich.prompt import Confirm
+    
+    console.print("🔍 Analyzing character integration...")
+    
+    # Get AI-assisted integration analysis
+    integration_service = SmartIntegrationService()
+    suggestion = await integration_service.suggest_character_integration(
+        name, description, chapter, story_id
+    )
+    
+    # Display analysis results
+    console.print("\n🤖 AI Integration Analysis:")
+    
+    if suggestion.optimal_introduction_chapter:
+        console.print(f"📍 Optimal introduction: Chapter {suggestion.optimal_introduction_chapter}")
+    
+    console.print(f"🎯 Integration approach: {suggestion.integration_approach}")
+    
+    if suggestion.relationship_impacts:
+        console.print("\n👥 Relationship impacts:")
+        for impact in suggestion.relationship_impacts:
+            console.print(f"  • {impact}")
+    
+    if suggestion.plot_considerations:
+        console.print("\n📚 Plot considerations:")
+        for consideration in suggestion.plot_considerations:
+            console.print(f"  • {consideration}")
+    
+    if suggestion.continuity_risks:
+        console.print("\n⚠️ Continuity risks:")
+        for risk in suggestion.continuity_risks:
+            console.print(f"  • {risk}", style="yellow")
+    
+    if suggestion.suggestions:
+        console.print("\n💡 AI suggestions:")
+        for sug in suggestion.suggestions:
+            console.print(f"  • {sug}", style="green")
+    
+    # Confirm integration
+    if Confirm.ask("\n🚀 Proceed with character integration?"):
+        # Create character sheet content
+        character_content = f"""
+Name: {name}
+Role: {role}
+Description: {description}
+Introduction Context: {suggestion.integration_approach}
+Planned Chapter: {chapter or suggestion.optimal_introduction_chapter or 'TBD'}
+AI Analysis: {', '.join(suggestion.suggestions)}
+"""
+        
+        # Execute integration using existing pipeline
+        success = await integration_service.execute_integration(
+            character_content,
+            "character_sheet",
+            story_id,
+            {"character_name": name, "role": role, "integration_analysis": suggestion.suggestions}
+        )
+        
+        if success:
+            console.print("✅ Character integrated successfully!", style="bold green")
+            console.print(f"💡 Use [bold cyan]factory memory-list --search \"{name}\"[/bold cyan] to verify")
+        else:
+            console.print("❌ Character integration failed", style="bold red")
+    else:
+        console.print("👋 Character integration cancelled")
+
+async def _run_context_integration(content: str, context_type: str, chapter: Optional[int], story_id: Optional[str], auto_integrate: bool):
+    """Implementation for context injection."""
+    from src.services.smart_integration import SmartIntegrationService
+    from rich.prompt import Confirm
+    
+    console.print("🔍 Analyzing context integration...")
+    
+    # Get AI analysis
+    integration_service = SmartIntegrationService()
+    suggestion = await integration_service.suggest_context_integration(
+        content, context_type, chapter, story_id
+    )
+    
+    # Display analysis
+    console.print(f"\n🤖 AI Analysis for {context_type} integration:")
+    console.print(f"🎯 Approach: {suggestion.integration_approach}")
+    
+    if suggestion.plot_considerations:
+        console.print("\n📚 Plot impact:")
+        for consideration in suggestion.plot_considerations:
+            console.print(f"  • {consideration}")
+    
+    if suggestion.continuity_risks:
+        console.print("\n⚠️ Continuity considerations:")
+        for risk in suggestion.continuity_risks:
+            console.print(f"  • {risk}", style="yellow")
+    
+    if suggestion.suggestions:
+        console.print("\n💡 AI recommendations:")
+        for sug in suggestion.suggestions:
+            console.print(f"  • {sug}", style="green")
+    
+    # Confirm integration
+    proceed = auto_integrate or Confirm.ask("\n🚀 Proceed with context integration?")
+    
+    if proceed:
+        # Format content with metadata
+        formatted_content = f"""
+Type: {context_type}
+Content: {content}
+Introduction: Chapter {chapter or 'TBD'}
+Integration Notes: {suggestion.integration_approach}
+AI Recommendations: {', '.join(suggestion.suggestions)}
+"""
+        
+        # Execute integration
+        success = await integration_service.execute_integration(
+            formatted_content,
+            context_type,
+            story_id,
+            {"context_type": context_type, "introduction_chapter": chapter}
+        )
+        
+        if success:
+            console.print("✅ Context integrated successfully!", style="bold green")
+            console.print(f"💡 Use [bold cyan]factory memory-list --type \"{context_type}\"[/bold cyan] to verify")
+        else:
+            console.print("❌ Context integration failed", style="bold red")
+    else:
+        console.print("👋 Context integration cancelled")
+
+async def _run_story_steering(direction: str, intensity: str, from_chapter: Optional[int], story_id: Optional[str]):
+    """Implementation for story steering."""
+    from src.services.smart_integration import SmartIntegrationService
+    
+    console.print("🔍 Analyzing story steering impact...")
+    
+    # Analyze steering direction as context injection
+    integration_service = SmartIntegrationService()
+    suggestion = await integration_service.suggest_context_integration(
+        f"Story direction: {direction} (intensity: {intensity})",
+        "plot_direction",
+        from_chapter,
+        story_id
+    )
+    
+    # Display steering analysis
+    console.print(f"\n🎭 Story Steering Analysis:")
+    console.print(f"🎯 Implementation approach: {suggestion.integration_approach}")
+    
+    if suggestion.plot_considerations:
+        console.print("\n📚 Narrative impact:")
+        for consideration in suggestion.plot_considerations:
+            console.print(f"  • {consideration}")
+    
+    if suggestion.suggestions:
+        console.print("\n💡 Steering recommendations:")
+        for sug in suggestion.suggestions:
+            console.print(f"  • {sug}", style="green")
+    
+    console.print(f"\n📝 Next steps:")
+    console.print(f"  1. Use [bold cyan]factory inject-context[/bold cyan] to add specific story elements")
+    console.print(f"  2. Use [bold cyan]factory add-character[/bold cyan] to introduce characters supporting this direction")
+    console.print(f"  3. Monitor agent outputs for natural incorporation of steering guidance")

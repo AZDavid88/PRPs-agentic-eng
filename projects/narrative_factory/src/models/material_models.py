@@ -480,6 +480,24 @@ class MaterialIngestionResponse(BaseModel):
         description="Non-fatal processing warnings"
     )
 
+    # LibrarianAgent integration fields
+    librarian_enhanced: bool = Field(
+        False,
+        description="Whether materials were enhanced by LibrarianAgent analysis"
+    )
+    librarian_insights: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="LibrarianAgent analysis insights for each material"
+    )
+    librarian_analysis_time: float = Field(
+        0.0,
+        description="Time spent on LibrarianAgent analysis in seconds"
+    )
+    librarian_errors: list[str] = Field(
+        default_factory=list,
+        description="Errors encountered during LibrarianAgent processing"
+    )
+
     # Timestamps
     started_at: datetime = Field(
         default_factory=datetime.utcnow,

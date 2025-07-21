@@ -1092,6 +1092,121 @@ class QdrantService:
             logger.error(f"Failed to cleanup test collections: {e}")
             raise DatabaseError(f"Test cleanup failed: {e}") from e
 
+    async def delete_document(self, doc_id: str, collection_name: str) -> bool:
+        """
+        Delete document from Qdrant collection.
+        
+        Args:
+            doc_id: Document ID to delete
+            collection_name: Target collection
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            async with self.connection_pool.get_connection() as client:
+                from qdrant_client import models
+                
+                await client.delete(
+                    collection_name=collection_name,
+                    points_selector=models.PointIdsList(points=[doc_id])
+                )
+            
+            logger.info(f"Document {doc_id} deleted from {collection_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to delete document {doc_id}: {e}")
+            return False
+
+    async def update_document(self, doc_id: str, new_content: str, collection_name: str, metadata: Optional[dict[str, Any]] = None) -> bool:
+        """
+        Update existing document in Qdrant collection.
+        
+        Args:
+            doc_id: Document ID to update
+            new_content: New content for the document
+            collection_name: Target collection
+            metadata: Optional metadata to update
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # First delete old version
+            await self.delete_document(doc_id, collection_name)
+            
+            # Then ingest new version (use existing method)
+            await self.ingest_document(doc_id, new_content, collection_name, metadata)
+            
+            logger.info(f"Document {doc_id} updated in {collection_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to update document {doc_id}: {e}")
+            return False
+
+    async def search_with_filters(self, filters: dict[str, Any], collection_name: str, limit: int = 50) -> list[dict[str, Any]]:
+        """
+        Search documents with metadata filters.
+        
+        Args:
+            filters: Metadata filters (e.g., {"story_id": "my_serial", "doc_type": "character_sheet"})
+            collection_name: Target collection
+            limit: Maximum results
+            
+        Returns:
+            list: Matching documents with metadata
+        """
+        try:
+            async with self.connection_pool.get_connection() as client:
+                from qdrant_client import models
+                
+                # Build filter conditions
+                conditions = []
+                for key, value in filters.items():
+                    conditions.append(
+                        models.FieldCondition(
+                            key=key,
+                            match=models.MatchValue(value=value)
+                        )
+                    )
+                
+                filter_query = models.Filter(must=conditions) if conditions else None
+                
+                # Get collection info to determine correct vector dimension
+                collection_info = await client.get_collection(collection_name)
+                actual_vector_size = collection_info.config.params.vectors.size
+                
+                # Search with dummy vector (we want metadata filtering)
+                dummy_vector = [0.0] * actual_vector_size
+                
+                results = await client.search(
+                    collection_name=collection_name,
+                    query_vector=dummy_vector,
+                    query_filter=filter_query,
+                    limit=limit,
+                    with_payload=True
+                )
+                
+                # Extract documents with metadata
+                documents = []
+                for result in results:
+                    documents.append({
+                        "doc_id": str(result.id),
+                        "content": result.payload.get("content", ""),
+                        "doc_type": result.payload.get("doc_type", "unknown"),
+                        "story_id": result.payload.get("story_id", None),
+                        "metadata": result.payload
+                    })
+                
+                logger.info(f"Found {len(documents)} documents with filters {filters}")
+                return documents
+                
+        except Exception as e:
+            logger.error(f"Search with filters failed: {e}")
+            return []
+
     async def close(self) -> None:
         """Close the Qdrant connection pool and embedding service."""
         try:

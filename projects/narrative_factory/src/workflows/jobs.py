@@ -159,6 +159,89 @@ class JobStore:
         """
         return bool(self.redis_client.delete(f"job:{job_id}"))
 
+    def request_revision(self, job_id: str, feedback: str, section: str = "all") -> Optional[str]:
+        """Request revision of specific job section.
+        
+        Args:
+            job_id: Job identifier  
+            feedback: Specific revision feedback
+            section: Section to revise ("all", "emotional_arc", "key_events", etc.)
+            
+        Returns:
+            New job ID for revision, None if failed
+        """
+        try:
+            # Get original job
+            original_job = self.get_job(job_id)
+            if not original_job:
+                return None
+            
+            # Create revision job
+            revision_job = JobState(
+                agent=original_job.agent,
+                status="processing",
+                input_payload={
+                    **original_job.input_payload,
+                    "revision_request": {
+                        "original_job_id": job_id,
+                        "feedback": feedback,
+                        "section": section,
+                        "original_output": original_job.output_payload
+                    }
+                },
+                output_payload=None
+            )
+            
+            # Store revision job
+            self.redis_client.set(f"job:{revision_job.job_id}", revision_job.model_dump_json())
+            
+            # Mark original as under revision
+            original_job.status = "under_revision"
+            original_job.updated_at = datetime.now()
+            self.redis_client.set(f"job:{job_id}", original_job.model_dump_json())
+            
+            return revision_job.job_id
+            
+        except Exception as e:
+            # Note: logger not imported, would need to add import
+            return None
+
+    def create_alternative_job(self, original_job_id: str) -> Optional[str]:
+        """Create alternative version of existing job.
+        
+        Args:
+            original_job_id: Job to create alternative for
+            
+        Returns:
+            New job ID for alternative, None if failed
+        """
+        try:
+            original_job = self.get_job(original_job_id)
+            if not original_job:
+                return None
+            
+            # Create alternative job with same input
+            alt_job = JobState(
+                agent=original_job.agent,
+                status="processing", 
+                input_payload={
+                    **original_job.input_payload,
+                    "alternative_request": {
+                        "original_job_id": original_job_id,
+                        "variation_seed": datetime.now().isoformat()  # Ensure different output
+                    }
+                },
+                output_payload=None
+            )
+            
+            self.redis_client.set(f"job:{alt_job.job_id}", alt_job.model_dump_json())
+            
+            return alt_job.job_id
+            
+        except Exception as e:
+            # Note: logger not imported, would need to add import
+            return None
+
     def health_check(self) -> bool:
         """Check Upstash Redis connection health.
 

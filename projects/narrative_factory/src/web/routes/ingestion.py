@@ -226,21 +226,111 @@ async def process_materials_background(
     request: MaterialIngestionRequest,
     pipeline: MaterialIngestionPipeline
 ) -> None:
-    """Background task to process materials."""
+    """Background task to process materials with LibrarianAgent integration."""
     try:
         # Update job status
         if job_id in active_jobs:
             active_jobs[job_id].update({
                 "status": "processing",
                 "updated_at": datetime.now(),
-                "message": "Processing materials..."
+                "message": "Initializing LibrarianAgent analysis..."
+            })
+
+        # LibrarianAgent pre-processing
+        from src.agents.librarian import LibrarianAgent
+        
+        librarian = LibrarianAgent()
+        
+        # Update status for LibrarianAgent analysis
+        if job_id in active_jobs:
+            active_jobs[job_id].update({
+                "message": "LibrarianAgent analyzing materials for intelligent categorization..."
+            })
+        
+        # Enhanced material analysis using LibrarianAgent
+        enhanced_materials = []
+        librarian_insights = []
+        
+        for i, material in enumerate(request.materials):
+            try:
+                # LibrarianAgent material analysis using proper model
+                from src.models.librarian_models import MaterialAnalysisRequest
+                
+                analysis_request = MaterialAnalysisRequest(
+                    materials=[material],
+                    genre_context=request.genre_context or "unknown",
+                    story_id=request.story_id or f"upload_{job_id}",
+                    batch_size=1,
+                    enable_cross_references=True,
+                    complexity_level="medium"
+                )
+                
+                # Get LibrarianAgent analysis
+                analysis_result = await librarian.analyze_materials(analysis_request)
+                
+                # Extract insights for enhanced processing
+                if analysis_result and hasattr(analysis_result, 'analysis_results'):
+                    material_analysis = analysis_result.analysis_results[0] if analysis_result.analysis_results else None
+                    if material_analysis:
+                        librarian_insights.append({
+                            "material_index": i,
+                            "categories": material_analysis.primary_category,
+                            "entities": material_analysis.extracted_entities,
+                            "quality_score": material_analysis.quality_assessment.overall_score if hasattr(material_analysis, 'quality_assessment') else 0.8,
+                            "cross_references": material_analysis.cross_references if hasattr(material_analysis, 'cross_references') else []
+                        })
+                        
+                        # Enhanced material with LibrarianAgent metadata
+                        enhanced_material = f"""[LIBRARIAN ANALYSIS]
+Category: {material_analysis.primary_category}
+Entities: {', '.join(material_analysis.extracted_entities[:5])}
+Quality Score: {material_analysis.quality_assessment.overall_score if hasattr(material_analysis, 'quality_assessment') else 'N/A'}
+
+[ORIGINAL CONTENT]
+{material}"""
+                        enhanced_materials.append(enhanced_material)
+                    else:
+                        enhanced_materials.append(material)
+                        librarian_insights.append({"material_index": i, "analysis": "basic"})
+                else:
+                    enhanced_materials.append(material)
+                    librarian_insights.append({"material_index": i, "analysis": "fallback"})
+                    
+            except Exception as e:
+                logger.warning(f"LibrarianAgent analysis failed for material {i}: {e}")
+                enhanced_materials.append(material)
+                librarian_insights.append({"material_index": i, "analysis": "failed", "error": str(e)})
+        
+        # Update request with enhanced materials
+        enhanced_request = MaterialIngestionRequest(
+            materials=enhanced_materials,
+            genre_context=request.genre_context,
+            processing_mode=request.processing_mode,
+            additional_genres=request.additional_genres,
+            custom_categories=request.custom_categories,
+            batch_size=request.batch_size,
+            min_confidence_threshold=request.min_confidence_threshold,
+            enable_cross_references=request.enable_cross_references,
+            enable_progressive_disclosure=request.enable_progressive_disclosure,
+            story_id=request.story_id,
+            user_id=request.user_id
+        )
+
+        # Update status for main pipeline processing
+        if job_id in active_jobs:
+            active_jobs[job_id].update({
+                "message": "Processing enhanced materials with pipeline..."
             })
 
         # Create progress callback
         progress_callback = progress_callback_factory(job_id)
 
-        # Process materials
-        response = await pipeline.process_materials(request, progress_callback)
+        # Process materials with LibrarianAgent enhancements
+        response = await pipeline.process_materials(enhanced_request, progress_callback)
+        
+        # Add LibrarianAgent insights to response using proper Pydantic fields
+        response.librarian_insights = librarian_insights
+        response.librarian_enhanced = True
 
         # Store results
         job_results[job_id] = response
@@ -388,6 +478,11 @@ async def get_results(job_id: str) -> dict[str, Any]:
                 "temporal_scope": c.temporal_scope
             } for c in result.classifications
         ] if result.classifications else [],
+        "librarian_analysis": {
+            "enhanced": getattr(result, 'librarian_enhanced', False),
+            "insights": getattr(result, 'librarian_insights', []),
+            "analysis_count": len(getattr(result, 'librarian_insights', []))
+        },
         "failed_materials": result.failed_materials,
         "errors": result.errors,
         "created_at": job_data["created_at"],
@@ -470,6 +565,124 @@ async def cancel_job(job_id: str) -> dict[str, str]:
 
         logger.info(f"Deleted job {job_id}")
         return {"message": f"Job {job_id} deleted successfully"}
+
+from pydantic import BaseModel
+
+class GenreDetectionRequest(BaseModel):
+    content: str
+
+@router.post("/detect-genre")
+async def detect_genre(request: GenreDetectionRequest) -> dict[str, Any]:
+    """
+    Detect genre from content using LibrarianAgent classification.
+    
+    Args:
+        content: Text content to analyze for genre detection
+        
+    Returns:
+        Suggested genres and confidence scores
+    """
+    try:
+        from src.ingestion.classifier import MaterialClassifier
+        
+        if not request.content.strip():
+            raise HTTPException(status_code=400, detail="Content cannot be empty")
+        
+        # Initialize classifier
+        classifier = MaterialClassifier()
+        
+        # Use "unknown" as initial genre for detection
+        result = await classifier.classify_single_material(
+            material=request.content[:1500],  # Limit content for genre detection
+            genre_context="unknown",
+            additional_genres=None,
+            custom_categories=None
+        )
+        
+        # Extract genre suggestions from classification
+        suggested_genres = []
+        
+        # Analyze content analysis for genre hints
+        if hasattr(result, 'content_analysis') and result.content_analysis:
+            themes = result.content_analysis.get('key_themes', [])
+            narrative_elements = result.content_analysis.get('narrative_elements', [])
+            
+            # Map themes/elements to genres
+            genre_mapping = {
+                'litrpg': ['game', 'level', 'stats', 'rpg', 'system', 'quest', 'xp'],
+                'fantasy': ['magic', 'dragon', 'wizard', 'spell', 'realm', 'sword'],
+                'sci-fi': ['space', 'alien', 'technology', 'future', 'ship', 'planet'],
+                'romance': ['love', 'relationship', 'heart', 'passion', 'marriage'],
+                'mystery': ['detective', 'clue', 'murder', 'investigation', 'crime'],
+                'horror': ['fear', 'death', 'monster', 'dark', 'scary', 'nightmare'],
+                'historical': ['ancient', 'period', 'war', 'empire', 'historical'],
+                'contemporary': ['modern', 'current', 'today', 'urban', 'realistic']
+            }
+            
+            # Score genres based on theme/element matches
+            genre_scores = {}
+            all_text = ' '.join(themes + narrative_elements + [request.content]).lower()
+            
+            for genre, keywords in genre_mapping.items():
+                score = sum(1 for keyword in keywords if keyword in all_text)
+                if score > 0:
+                    genre_scores[genre] = min(score / len(keywords), 1.0)
+            
+            # Sort by score and take top suggestions
+            suggested_genres = [
+                {"genre": genre, "confidence": score}
+                for genre, score in sorted(genre_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+            ]
+        
+        # Add fallback suggestions if none detected
+        if not suggested_genres:
+            suggested_genres = [
+                {"genre": "unknown", "confidence": 0.5},
+                {"genre": "fantasy", "confidence": 0.3},
+                {"genre": "contemporary", "confidence": 0.3}
+            ]
+        
+        return {
+            "detected_genres": suggested_genres,
+            "primary_suggestion": suggested_genres[0]["genre"] if suggested_genres else "unknown",
+            "analysis": {
+                "content_length": len(request.content),
+                "classification_confidence": result.confidence_score if hasattr(result, 'confidence_score') else 0.5,
+                "detected_entities": result.extracted_entities if hasattr(result, 'extracted_entities') else []
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Genre detection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Genre detection failed: {str(e)}")
+
+@router.get("/available-genres")
+async def get_available_genres() -> dict[str, Any]:
+    """
+    Get list of available genres for dynamic dropdown.
+    
+    Returns:
+        List of supported genres with descriptions
+    """
+    genres = [
+        {"value": "litrpg", "label": "LitRPG", "description": "Game-like progression systems"},
+        {"value": "fantasy", "label": "Fantasy", "description": "Magic and mythical elements"},
+        {"value": "sci-fi", "label": "Science Fiction", "description": "Futuristic and technological themes"},
+        {"value": "romance", "label": "Romance", "description": "Love and relationship focused"},
+        {"value": "mystery", "label": "Mystery", "description": "Investigation and puzzles"},
+        {"value": "horror", "label": "Horror", "description": "Fear and supernatural elements"},
+        {"value": "historical", "label": "Historical", "description": "Past time periods and events"},
+        {"value": "contemporary", "label": "Contemporary", "description": "Modern day settings"},
+        {"value": "gamelit", "label": "GameLit", "description": "Game world and mechanics"},
+        {"value": "progression", "label": "Progression Fantasy", "description": "Power growth and advancement"},
+        {"value": "unknown", "label": "Unknown/Other", "description": "Genre to be determined"}
+    ]
+    
+    return {
+        "genres": genres,
+        "supports_dynamic_detection": True,
+        "detection_endpoint": "/api/ingestion/detect-genre"
+    }
 
 @router.get("/health")
 async def ingestion_health() -> dict[str, Any]:

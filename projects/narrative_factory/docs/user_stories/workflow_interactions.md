@@ -1,0 +1,13 @@
+# Interaction Patterns:
+
+1. When I want to add a character mid-story, I say 'Add Zara the spy' and system suggests integration. But I don't know who specifically to tell this to (Director, Tactician, etc.?). I know the architect will be the one to create this character, but that's something to be done external to this narrative engine. (See director and tactician prompts at /workspaces/PRPs-agentic-eng/projects/narrative_factory/src/agents/prompts, and architect prompt at /workspaces/PRPs-agentic-eng/.personas/ARCHITECT.txt)
+
+2. When agents generate content I don't like, I want to edit specific parts, not just approve/reject, by simply asking, "this part seems weak, what about [SOMETHING SPECIFIC TO CHANGE FOR THE PLOT]?" This way, the agents (once again, with prompts at /workspaces/PRPs-agentic-eng/projects/narrative_factory/src/agents/prompts can suggest something thanks to their cognitive engine)
+
+3. When I'm stuck on plot direction, I want to brainstorm with AI agents in natural language. This is something to be done with Director in the chat interface. I can do it with him externally via some models like ChatGPT, Claude, or Google Gemini, but if it can be done within this workflow, that would be very convenient. Then once I'm set on the story arc, I can then have him break it down into the scenes that the story arc needs to go through, then break each of those scene briefs down, to act as input for the tactician workflow
+
+4. Weaver's workflow should be something that can both: see the full list of chapter beats from Tactician; but can still focus to generate satisfying prose for each beat, weaving the narrative seamlessly from one beat to another, until the end with a hook. During earlier version of this application, I built out nodes within platforms like Langflow, Flowise, or n8n, where Weaver agent (with him as the system prompt) run through each beat in a loop, until that list of chapter beats is done. It's done in manner that there's no repetition in the plot points, and written in a natural narrative flow.
+
+5. The Weaver's finished chapter proses will be sent to Canonist to automatically summarized, and broken down into tension state. He will then send both to Qdrant database, properly categorized vectors, clearly labeled, for the other personas to grab what they need to carry out their tasks.
+
+6. I can also come in, especially in the beginning, to inject the beginning/initial scene brief, since although director has that capabity, the architect also does, and since he already has the context, I just have him does so, and inject that into tactician's workflow to process. Not sure if there's a better way to do it, or if I need to specify a format for tactician's workflow to better process it. 

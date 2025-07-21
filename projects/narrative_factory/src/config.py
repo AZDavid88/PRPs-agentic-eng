@@ -57,11 +57,11 @@ class ModelSettings(BaseSettings):
     """Configuration for AI models with validation and fallbacks."""
 
     generation_model: str = Field(
-        default="gemini-1.5-pro-latest",
+        default="gemini-2.5-flash",
         description="Primary model for story generation"
     )
     canonist_model: str = Field(
-        default="gemini-1.5-pro-latest",
+        default="gemini-2.5-flash",
         description="Model for canonist agent operations"
     )
     embedding_provider: str = Field(

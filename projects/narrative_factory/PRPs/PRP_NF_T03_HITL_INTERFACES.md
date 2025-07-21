@@ -39,22 +39,31 @@ Implement comprehensive Human-in-the-Loop web interfaces including real-time Web
 
 ### **User-Visible Behavior**
 - Real-time chat interface showing live agent conversations and decision-making
+- **Conversational Agent Chat Interface**: ChatGPT-style conversation with Director's cognitive engines
 - Interactive workflow dashboard with agent status, memory utilization, and performance metrics
 - Enhanced approval interfaces with rich feedback, iteration requests, and context injection
+- **Natural Language Story Steering**: "Add Zara the spy", "Make this more cyberpunk" commands
 - WebSocket-powered live updates for workflow status and agent health monitoring
 
 ### **Technical Implementation**
 - FastAPI WebSocket endpoints for real-time agent conversation streaming
+- **Chat API Integration**: Direct integration with Director's NarrativeStrategyEngine for conversational planning
 - React/Vue.js dashboard with interactive workflow monitoring
 - Enhanced job store integration with rich approval metadata
+- **Natural Language Command Parser**: Translation of conversational commands to agent execution
 - Real-time agent health monitoring with performance metrics
 - WebSocket connection management with reconnection and state persistence
 
 ### **Success Criteria**
 - [ ] WebSocket chat interface streaming live agent conversations
+- [ ] **Conversational Director Interface**: ChatGPT-style conversation with Director's cognitive engines
+- [ ] **Chat Memory Integration**: All conversational insights automatically ingested to Qdrant for agent RAG access
 - [ ] Interactive workflow dashboard with real-time status updates
 - [ ] Enhanced approval workflows with rich feedback capabilities
+- [ ] **Natural Language Commands**: "Add Zara the spy", "This part seems weak, what about X?" workflows
 - [ ] Agent health monitoring with performance metrics display
+- [ ] **Story Brainstorming Chat**: Natural language planning conversations with Director
+- [ ] **Agent RAG Access**: Other agents can retrieve and use conversational insights through memory system
 - [ ] WebSocket connection resilience with automatic reconnection
 - [ ] Mobile-responsive interface design for multi-device access
 - [ ] Integration with existing Prefect workflows and job store
@@ -266,6 +275,34 @@ async def enhanced_approve_job(job_id: str, approval_data: ApprovalRequest):
         await manager.broadcast_job_update(job_id, {"status": "context_injected", "context": approval_data.context_injection})
         
     return {"status": "success", "job_id": job_id}
+```
+
+### **Memory Integration Architecture**
+
+```yaml
+chat_memory_integration:
+  purpose: "Ensure conversational insights available to all agents via RAG"
+  
+  ingestion_pipeline:
+    trigger: "Every meaningful Director response (>50 chars)"
+    process: "Format → Categorize → Vectorize → Store in Qdrant"
+    metadata_enrichment: "conversation_type, insight_tags, session_context"
+    
+  memory_categorization:
+    doc_type: "chat_insight"
+    conversation_types: ["character_development", "plot_development", "worldbuilding", "writing_craft", "creative_brainstorming"]
+    insight_tags: ["revision_request", "character_insight", "plot_guidance", "creative_solution"]
+    
+  agent_access_patterns:
+    tactician: "Can search chat_insights for user feedback on pacing, character arcs"
+    weaver: "Can retrieve style guidance and creative direction from conversations"
+    canonist: "Can access continuity discussions and world-building insights"
+    director: "Can reference previous planning conversations for consistency"
+    
+  retrieval_optimization:
+    search_filters: "Filter by conversation_type, story_id, insight_tags"
+    context_fusion: "Combine chat insights with traditional memory context"
+    relevance_scoring: "Weight recent conversations higher for current planning"
 ```
 
 ### **Critical Implementation Details**
@@ -713,7 +750,443 @@ async def websocket_dashboard_endpoint(websocket: WebSocket):
         connection_manager.disconnect(websocket)
 ```
 
-### **Step 4: Enhanced Approval Interface (Day 4-5)**
+### **Step 4: Conversational Agent Chat Interface (Day 4-5)**
+
+```python
+# File: src/web/chat_api.py
+"""
+Conversational chat interface for Direct integration with Director's cognitive engines
+"""
+from datetime import datetime
+from typing import Dict, List, Any, Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from pydantic import BaseModel
+import json
+import asyncio
+from ..agents.prompts.director import DirectorAgent
+from ..memory.qdrant import QdrantService
+from ..web.websocket_manager import connection_manager, WebSocketMessage
+import logging
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant" 
+    content: str
+    timestamp: datetime
+    message_id: str
+
+class ChatSession(BaseModel):
+    session_id: str
+    user_id: str
+    agent_type: str  # "director", "tactician", etc.
+    messages: List[ChatMessage] = []
+    context: Dict[str, Any] = {}
+    created_at: datetime
+    last_activity: datetime
+
+class ChatCommand(BaseModel):
+    type: str  # "story_planning", "character_addition", "feedback", "brainstorm"
+    content: str
+    context: Optional[Dict[str, Any]] = None
+
+class DirectorChatInterface:
+    """Chat interface specifically for Director agent conversations"""
+    
+    def __init__(self):
+        self.director_agent = DirectorAgent()
+        self.qdrant_service = QdrantService()
+        self.active_sessions: Dict[str, ChatSession] = {}
+        
+    async def create_chat_session(self, user_id: str, initial_context: Dict[str, Any] = None) -> str:
+        """Create new chat session with Director"""
+        import uuid
+        session_id = f"chat_{uuid.uuid4().hex[:8]}"
+        
+        session = ChatSession(
+            session_id=session_id,
+            user_id=user_id,
+            agent_type="director",
+            context=initial_context or {},
+            created_at=datetime.now(),
+            last_activity=datetime.now()
+        )
+        
+        self.active_sessions[session_id] = session
+        
+        # Send initial greeting
+        greeting = await self.generate_director_greeting(initial_context)
+        await self.add_message(session_id, "assistant", greeting)
+        
+        return session_id
+    
+    async def process_user_message(self, session_id: str, user_message: str) -> str:
+        """Process user message and generate Director response"""
+        
+        if session_id not in self.active_sessions:
+            raise ValueError(f"Chat session {session_id} not found")
+            
+        session = self.active_sessions[session_id]
+        
+        # Add user message to session
+        await self.add_message(session_id, "user", user_message)
+        
+        # Parse message for commands or natural conversation
+        command = await self.parse_user_intent(user_message, session.context)
+        
+        # Generate Director response based on cognitive engines
+        response = await self.generate_director_response(command, session)
+        
+        # Add Director response to session
+        await self.add_message(session_id, "assistant", response)
+        
+        # Update session activity
+        session.last_activity = datetime.now()
+        
+        return response
+    
+    async def parse_user_intent(self, message: str, context: Dict[str, Any]) -> ChatCommand:
+        """Parse user message to identify intent and command type"""
+        
+        message_lower = message.lower()
+        
+        # Character addition patterns
+        if any(phrase in message_lower for phrase in ["add", "create", "introduce"]) and any(phrase in message_lower for phrase in ["character", "person", "spy", "villain"]):
+            return ChatCommand(
+                type="character_addition",
+                content=message,
+                context={"action": "add_character", "raw_input": message}
+            )
+        
+        # Story feedback patterns  
+        elif any(phrase in message_lower for phrase in ["seems weak", "doesn't work", "what about", "change this"]):
+            return ChatCommand(
+                type="story_feedback", 
+                content=message,
+                context={"action": "request_revision", "feedback_type": "improvement"}
+            )
+        
+        # Brainstorming patterns
+        elif any(phrase in message_lower for phrase in ["what if", "brainstorm", "ideas", "stuck", "direction"]):
+            return ChatCommand(
+                type="brainstorm",
+                content=message,
+                context={"action": "strategic_planning", "mode": "creative"}
+            )
+        
+        # Story steering patterns
+        elif any(phrase in message_lower for phrase in ["make", "add", "more", "cyberpunk", "romantic", "darker"]):
+            return ChatCommand(
+                type="story_steering",
+                content=message,
+                context={"action": "narrative_adjustment", "style_change": True}
+            )
+        
+        # Default to general planning conversation
+        else:
+            return ChatCommand(
+                type="story_planning",
+                content=message,
+                context={"action": "general_conversation"}
+            )
+    
+    async def generate_director_response(self, command: ChatCommand, session: ChatSession) -> str:
+        """Generate Director response using cognitive engines"""
+        
+        # Build context for Director's cognitive engines
+        director_context = {
+            "chat_history": [msg.content for msg in session.messages[-5:]],  # Last 5 messages
+            "story_context": session.context,
+            "command_type": command.type,
+            "user_intent": command.context
+        }
+        
+        if command.type == "character_addition":
+            return await self.handle_character_addition(command.content, director_context)
+            
+        elif command.type == "story_feedback":
+            return await self.handle_story_feedback(command.content, director_context)
+            
+        elif command.type == "brainstorm":
+            return await self.handle_brainstorming(command.content, director_context)
+            
+        elif command.type == "story_steering":
+            return await self.handle_story_steering(command.content, director_context)
+            
+        else:
+            return await self.handle_general_conversation(command.content, director_context)
+    
+    async def handle_character_addition(self, user_input: str, context: Dict[str, Any]) -> str:
+        """Handle character addition requests using Director's cognitive engines"""
+        
+        # Use Director's NarrativeStrategyEngine for character integration analysis
+        prompt = f"""
+        CONVERSATIONAL DIRECTOR MODE - CHARACTER INTEGRATION
+        
+        User wants to add: {user_input}
+        
+        Use your NarrativeStrategyEngine to:
+        1. Analyze the character concept for story integration potential
+        2. Suggest how this character fits into current narrative threads
+        3. Propose integration scenes or story beats
+        4. Identify potential conflicts or relationships
+        
+        Respond conversationally, as if brainstorming with a fellow writer.
+        """
+        
+        # Execute Director's cognitive engines
+        response = await self.director_agent.execute_with_cognitive_engines(prompt, context)
+        
+        return f"Great character idea! {response}\n\nWould you like me to create a formal character integration plan, or shall we explore this concept further?"
+    
+    async def handle_story_feedback(self, feedback: str, context: Dict[str, Any]) -> str:
+        """Handle story feedback and revision suggestions"""
+        
+        prompt = f"""
+        CONVERSATIONAL DIRECTOR MODE - STORY IMPROVEMENT
+        
+        User feedback: {feedback}
+        
+        Use your NarrativeStrategyEngine to:
+        1. Analyze what might be weak about the current approach
+        2. Generate 3-4 alternative approaches 
+        3. Consider how changes affect overall story arc
+        4. Suggest specific improvements
+        
+        Respond as a collaborative writing partner offering solutions.
+        """
+        
+        response = await self.director_agent.execute_with_cognitive_engines(prompt, context)
+        
+        return f"I see what you mean. {response}\n\nWhich direction appeals to you? I can develop any of these further or generate more alternatives."
+    
+    async def handle_brainstorming(self, query: str, context: Dict[str, Any]) -> str:
+        """Handle creative brainstorming sessions"""
+        
+        prompt = f"""
+        CONVERSATIONAL DIRECTOR MODE - CREATIVE BRAINSTORMING
+        
+        User query: {query}
+        
+        Use your full NarrativeStrategyEngine cognitive suite:
+        1. Cycle1_DivergentIdeation for multiple creative options
+        2. Consider psychological warfare and character exploitation angles
+        3. Generate plot vectors that escalate tension
+        4. Suggest narrative mechanics that create compelling conflicts
+        
+        Present ideas conversationally, building on the user's creative energy.
+        """
+        
+        response = await self.director_agent.execute_with_cognitive_engines(prompt, context)
+        
+        return f"Let's explore this! {response}\n\nWhat resonates with you? We can dive deeper into any of these directions."
+    
+    async def _ingest_chat_content_to_memory(self, session_id: str, message: ChatMessage):
+        """
+        CRITICAL: Ingest conversational content into Qdrant for agent RAG access.
+        
+        This ensures that insights from human-agent conversations are available 
+        to all agents through the RAG retrieval system.
+        """
+        try:
+            from src.ingestion.pipeline import MaterialIngestionPipeline
+            from src.models.material_models import MaterialIngestionRequest
+            
+            session = self.active_sessions.get(session_id)
+            if not session:
+                return
+            
+            # Only ingest meaningful assistant messages (not user messages)
+            if message.role != "assistant" or len(message.content) < 50:
+                return
+            
+            # Format content for memory ingestion
+            memory_content = f"""
+CONVERSATIONAL_INSIGHT - Director Chat Session
+
+Session Context: {session.context.get('story_id', 'general_planning')}
+User Query Context: {session.messages[-2].content if len(session.messages) >= 2 else 'N/A'}
+
+Director Response:
+{message.content}
+
+Chat Metadata:
+- Session ID: {session_id}
+- Timestamp: {message.timestamp}
+- Message ID: {message.message_id}
+- User ID: {session.user_id}
+"""
+            
+            # Create ingestion request
+            ingestion_pipeline = MaterialIngestionPipeline()
+            
+            # Determine conversation type for categorization
+            conversation_type = self._classify_conversation_type(message.content)
+            
+            ingestion_request = MaterialIngestionRequest(
+                content=memory_content,
+                source_path=f"chat_session_{session_id}",
+                genre="narrative_planning",
+                additional_genres=[conversation_type],
+                custom_categories=["conversational_insight", "director_guidance", "human_ai_collaboration"],
+                story_id=session.context.get('story_id'),
+                metadata={
+                    "doc_type": "chat_insight",
+                    "conversation_type": conversation_type,
+                    "session_id": session_id,
+                    "agent_type": "director",
+                    "message_id": message.message_id,
+                    "user_id": session.user_id,
+                    "timestamp": message.timestamp.isoformat(),
+                    "thread_id": f"chat_thread_{session_id}",
+                    "insight_tags": self._extract_insight_tags(message.content)
+                }
+            )
+            
+            # Ingest into memory system
+            response = await ingestion_pipeline.ingest_materials([ingestion_request])
+            
+            if response.success:
+                logger.info(f"Successfully ingested chat content to memory: session={session_id}, message={message.message_id}")
+            else:
+                logger.error(f"Failed to ingest chat content: {response.error}")
+                
+        except Exception as e:
+            logger.error(f"Chat content ingestion failed: {e}")
+    
+    def _classify_conversation_type(self, content: str) -> str:
+        """Classify conversation type for better categorization."""
+        content_lower = content.lower()
+        
+        if any(word in content_lower for word in ["character", "personality", "motivation", "relationship"]):
+            return "character_development"
+        elif any(word in content_lower for word in ["plot", "story", "narrative", "arc", "conflict"]):
+            return "plot_development"
+        elif any(word in content_lower for word in ["world", "setting", "location", "culture", "magic"]):
+            return "worldbuilding"
+        elif any(word in content_lower for word in ["style", "tone", "pacing", "voice", "prose"]):
+            return "writing_craft"
+        elif any(word in content_lower for word in ["brainstorm", "idea", "creative", "inspiration"]):
+            return "creative_brainstorming"
+        else:
+            return "general_guidance"
+    
+    def _extract_insight_tags(self, content: str) -> List[str]:
+        """Extract relevant tags for better searchability."""
+        tags = []
+        content_lower = content.lower()
+        
+        # Story elements
+        tag_patterns = {
+            "revision_request": ["revise", "change", "improve", "modify"],
+            "character_insight": ["character", "personality", "motivation"],
+            "plot_guidance": ["plot", "story", "narrative", "tension"],
+            "creative_solution": ["solution", "approach", "strategy", "fix"],
+            "world_expansion": ["world", "setting", "culture", "history"],
+            "dialogue_craft": ["dialogue", "conversation", "speech"],
+            "pacing_advice": ["pacing", "rhythm", "flow", "speed"],
+            "conflict_escalation": ["conflict", "tension", "drama", "stakes"]
+        }
+        
+        for tag, keywords in tag_patterns.items():
+            if any(keyword in content_lower for keyword in keywords):
+                tags.append(tag)
+        
+        return tags[:5]  # Limit to 5 most relevant tags
+    
+    async def add_message(self, session_id: str, role: str, content: str):
+        """Add message to chat session and broadcast via WebSocket"""
+        import uuid
+        
+        message = ChatMessage(
+            role=role,
+            content=content,
+            timestamp=datetime.now(),
+            message_id=uuid.uuid4().hex[:8]
+        )
+        
+        self.active_sessions[session_id].messages.append(message)
+        
+        # Broadcast to WebSocket subscribers
+        websocket_message = WebSocketMessage(
+            type="chat_message",
+            timestamp=datetime.now(),
+            data={
+                "session_id": session_id,
+                "message": message.model_dump(),
+                "agent_type": "director"
+            },
+            source="chat_interface"
+        )
+        
+        await connection_manager.broadcast_to_subscription("agents", websocket_message)
+        
+        # **CRITICAL**: Ingest chat content into Qdrant for agent RAG access
+        await self._ingest_chat_content_to_memory(session_id, message)
+
+# Global chat interface instance
+director_chat = DirectorChatInterface()
+
+@router.post("/sessions")
+async def create_chat_session(
+    user_id: str,
+    initial_context: Optional[Dict[str, Any]] = None
+):
+    """Create new chat session with Director"""
+    session_id = await director_chat.create_chat_session(user_id, initial_context)
+    return {"session_id": session_id, "status": "created"}
+
+@router.post("/sessions/{session_id}/message")
+async def send_message(
+    session_id: str,
+    message: str
+):
+    """Send message to Director and get response"""
+    try:
+        response = await director_chat.process_user_message(session_id, message)
+        return {"response": response, "status": "success"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.websocket("/ws/{session_id}")
+async def websocket_chat_endpoint(websocket: WebSocket, session_id: str):
+    """WebSocket endpoint for real-time chat with Director"""
+    await connection_manager.connect(websocket, "agents", f"chat_{session_id}")
+    
+    try:
+        while True:
+            # Receive message from client
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+            
+            if message_data.get("type") == "user_message":
+                # Process user message and send Director response
+                user_message = message_data.get("content", "")
+                response = await director_chat.process_user_message(session_id, user_message)
+                
+                # Response is automatically broadcast via add_message method
+                
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+
+@router.get("/sessions/{session_id}/history")
+async def get_chat_history(session_id: str):
+    """Get chat history for session"""
+    if session_id not in director_chat.active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = director_chat.active_sessions[session_id]
+    return {
+        "session_id": session_id,
+        "messages": [msg.model_dump() for msg in session.messages],
+        "context": session.context,
+        "last_activity": session.last_activity
+    }
+```
+
+### **Step 5: Enhanced Approval Interface (Day 5-6)**
 
 ```python
 # File: src/web/approval_api.py
@@ -1031,7 +1504,40 @@ curl -X POST http://localhost:8000/api/approvals/jobs/test-job-id/approve \
 # Expected: Approval confirmation with next action
 ```
 
-### **Level 4: Integration Tests**
+### **Level 4: Chat Memory Integration Tests**
+```bash
+# Test conversational content ingestion to Qdrant
+uv run python -c "
+import asyncio
+from src.web.chat_api import DirectorChatInterface
+from src.memory.qdrant import QdrantService
+
+async def test_chat_memory_integration():
+    chat = DirectorChatInterface()
+    session_id = await chat.create_chat_session('test_user')
+    
+    # Send test message
+    response = await chat.process_user_message(session_id, 'Add a mysterious character who knows magic')
+    
+    # Verify memory ingestion 
+    qdrant = QdrantService()
+    search_results = await qdrant.search_by_content(
+        'mysterious character magic',
+        collection_name='world_bible',
+        limit=5
+    )
+    
+    # Should find the ingested conversation
+    chat_insights = [r for r in search_results if r.get('doc_type') == 'chat_insight']
+    assert len(chat_insights) > 0, 'Chat content not properly ingested to memory'
+    print('✅ Chat content successfully ingested and retrievable')
+
+asyncio.run(test_chat_memory_integration())
+"
+# Expected: Chat content ingested to Qdrant and retrievable by other agents
+```
+
+### **Level 5: Integration Tests**
 ```bash
 # Test end-to-end workflow with web interface
 uv run factory generate --seed "Test web interface integration" --mode interactive
@@ -1040,6 +1546,37 @@ uv run factory generate --seed "Test web interface integration" --mode interacti
 # Test WebSocket reconnection
 uv run python test_websocket_resilience.py
 # Expected: Automatic reconnection after network interruption
+
+# Test agent RAG access to chat insights
+uv run python -c "
+import asyncio
+from src.agents.personas import TacticianAgent
+from src.memory.qdrant import QdrantService
+
+async def test_agent_chat_access():
+    qdrant = QdrantService()
+    tactician = TacticianAgent()
+    
+    # Search for chat insights
+    chat_memories = await qdrant.search_with_filters(
+        filters={'doc_type': 'chat_insight'},
+        collection_name='world_bible',
+        limit=10
+    )
+    
+    if chat_memories:
+        print(f'✅ Found {len(chat_memories)} chat insights available to agents')
+        
+        # Test agent can access chat context
+        context = {'chat_insights': chat_memories[:3]}
+        result = await tactician.execute('Plan chapter incorporating user feedback', context)
+        print('✅ Agent successfully used chat insights in planning')
+    else:
+        print('⚠️ No chat insights found - may need to run chat test first')
+
+asyncio.run(test_agent_chat_access())
+"
+# Expected: Agents can access and use conversational insights through RAG
 ```
 
 ---
@@ -1069,9 +1606,11 @@ uv run python test_websocket_resilience.py
 - **Functional**: WebSocket connections stable with <100ms latency
 - **User Experience**: Interactive dashboard with real-time updates
 - **Integration**: Seamless integration with existing Prefect workflows
+- **Memory Integration**: 100% of conversational insights ingested to Qdrant and accessible via agent RAG
 - **Performance**: Support for 50+ concurrent WebSocket connections
 - **Security**: Authenticated access with proper authorization
 - **Reliability**: 99.9% WebSocket uptime with automatic reconnection
+- **Agent Collaboration**: All agents can access and utilize conversational insights for better narrative generation
 
 ---
 

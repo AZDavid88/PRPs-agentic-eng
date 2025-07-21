@@ -22,6 +22,15 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <!-- Navigation Tabs -->
+            <section class="navigation-tabs">
+                <div class="tab-container">
+                    <button class="tab-button active" data-tab="upload">📁 Material Upload</button>
+                    <button class="tab-button" data-tab="chat">💬 AI Chat Interface</button>
+                    <button class="tab-button" data-tab="jobs">📊 Job Management</button>
+                </div>
+            </section>
+
             <!-- Upload Section -->
             <section class="upload-section">
                 <div class="upload-card">
@@ -48,16 +57,19 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="genre" class="form-label">Genre Context</label>
-                                <select id="genre" name="genre_context" class="form-select">
-                                    <option value="fantasy">Fantasy</option>
-                                    <option value="sci-fi">Science Fiction</option>
-                                    <option value="romance">Romance</option>
-                                    <option value="mystery">Mystery</option>
-                                    <option value="horror">Horror</option>
-                                    <option value="historical">Historical</option>
-                                    <option value="contemporary">Contemporary</option>
-                                    <option value="unknown">Unknown</option>
-                                </select>
+                                <div class="genre-selection-container">
+                                    <select id="genre" name="genre_context" class="form-select">
+                                        <option value="unknown">Loading genres...</option>
+                                    </select>
+                                    <button type="button" id="detectGenreBtn" class="detect-genre-btn" title="Auto-detect genre from files">
+                                        🔍 Auto-detect
+                                    </button>
+                                </div>
+                                <div id="genreDetectionResult" class="genre-detection-result" style="display: none;">
+                                    <span class="detection-label">Detected:</span>
+                                    <span id="detectedGenre" class="detected-genre"></span>
+                                    <span id="detectionConfidence" class="detection-confidence"></span>
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -165,8 +177,131 @@
                 </div>
             </section>
 
-            <!-- Recent Jobs -->
-            <section class="jobs-section">
+            <!-- Chat Interface Section (Hidden by default) -->
+            <section class="chat-section" id="chatSection" style="display: none;">
+                <div class="chat-card">
+                    <div class="chat-header">
+                        <h2>AI Content Injection Chat</h2>
+                        <div class="chat-controls">
+                            <select id="chatMode" class="chat-mode-select">
+                                <option value="content_injection">Content Injection</option>
+                                <option value="job_review">Job Review</option>
+                                <option value="story_steering">Story Steering</option>
+                            </select>
+                            <div class="connection-status" id="connectionStatus">
+                                <span class="status-indicator offline"></span>
+                                <span class="status-text">Disconnected</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="system-message">
+                                <p>Welcome to the Narrative Factory AI Chat Interface!</p>
+                                <p>Connect to start conversational content injection, job review, or story steering.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <div class="chat-input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="chatInput" 
+                                    class="chat-input"
+                                    placeholder="Type your message here..."
+                                    disabled
+                                >
+                                <button id="sendButton" class="send-button" disabled>
+                                    <span>Send</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Session Configuration -->
+                            <details class="session-config">
+                                <summary>Session Configuration</summary>
+                                <div class="config-content">
+                                    <div class="config-row">
+                                        <div class="config-group">
+                                            <label for="storyId">Story ID</label>
+                                            <input type="text" id="storyId" placeholder="story_id" value="demo_story">
+                                        </div>
+                                        <div class="config-group">
+                                            <label for="sessionName">Session Name</label>
+                                            <input type="text" id="sessionName" placeholder="session_name" value="web_session">
+                                        </div>
+                                    </div>
+                                    <button id="connectButton" class="connect-button">
+                                        🔌 Connect to AI Agents
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Job Management Section (Hidden by default) -->
+            <section class="job-management-section" id="jobManagementSection" style="display: none;">
+                <div class="job-management-card">
+                    <div class="job-management-header">
+                        <h2>Job Management Dashboard</h2>
+                        <div class="job-management-controls">
+                            <button id="refreshJobsBtn" class="refresh-jobs-btn">
+                                🔄 Refresh Jobs
+                            </button>
+                            <select id="jobFilterStatus" class="job-filter-select">
+                                <option value="all">All Jobs</option>
+                                <option value="processing">Processing</option>
+                                <option value="completed">Completed</option>
+                                <option value="failed">Failed</option>
+                                <option value="queued">Queued</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="job-management-content">
+                        <div class="job-stats-row">
+                            <div class="job-stat-item">
+                                <div class="stat-value" id="totalJobs">0</div>
+                                <div class="stat-label">Total Jobs</div>
+                            </div>
+                            <div class="job-stat-item">
+                                <div class="stat-value" id="activeJobs">0</div>
+                                <div class="stat-label">Active</div>
+                            </div>
+                            <div class="job-stat-item">
+                                <div class="stat-value" id="completedJobs">0</div>
+                                <div class="stat-label">Completed</div>
+                            </div>
+                            <div class="job-stat-item">
+                                <div class="stat-value" id="failedJobs">0</div>
+                                <div class="stat-label">Failed</div>
+                            </div>
+                        </div>
+                        
+                        <div class="job-management-table">
+                            <div class="job-table-header">
+                                <div class="job-col-id">Job ID</div>
+                                <div class="job-col-status">Status</div>
+                                <div class="job-col-files">Files</div>
+                                <div class="job-col-genre">Genre</div>
+                                <div class="job-col-mode">Mode</div>
+                                <div class="job-col-created">Created</div>
+                                <div class="job-col-actions">Actions</div>
+                            </div>
+                            <div id="jobManagementList" class="job-table-body">
+                                <div class="job-table-row no-jobs-row">
+                                    <div class="no-jobs-message">No jobs found</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Jobs (Always Visible) -->
+            <section class="recent-jobs-section">
                 <div class="jobs-card">
                     <h3>Recent Jobs</h3>
                     <div id="jobsList" class="jobs-list">

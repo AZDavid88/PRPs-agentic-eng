@@ -119,6 +119,8 @@ async def handle_websocket_message(websocket: WebSocket, user_id: str, message: 
         await handle_execute_agent_message(websocket, user_id, message)
     elif message_type == "get_stats":
         await handle_get_stats_message(websocket, user_id, message)
+    elif message_type == "chat_message":
+        await handle_chat_message(websocket, user_id, message)
     else:
         error_response = WebSocketMessage(
             type="error",
@@ -280,6 +282,166 @@ async def handle_get_stats_message(websocket: WebSocket, user_id: str, message: 
         data={"stats": stats}
     )
     await connection_manager.send_personal_message(websocket, response)
+
+async def handle_chat_message(websocket: WebSocket, user_id: str, message: Dict[str, Any]):
+    """Handle chat messages and route to appropriate AI interface."""
+    
+    # Check permissions
+    if not check_permission(user_id, "chat_agents"):
+        error_response = WebSocketMessage(
+            type="error",
+            timestamp=datetime.now().isoformat(),
+            data={"error": "Permission denied for chat functionality"}
+        )
+        await connection_manager.send_personal_message(websocket, error_response)
+        return
+    
+    try:
+        data = message.get("data", {})
+        user_message = data.get("message", "")
+        chat_mode = data.get("mode", "content_injection")
+        story_id = data.get("story_id", "demo_story")
+        session_name = data.get("session_name", "web_session")
+        
+        if not user_message.strip():
+            error_response = WebSocketMessage(
+                type="error",
+                timestamp=datetime.now().isoformat(),
+                data={"error": "Message content cannot be empty"}
+            )
+            await connection_manager.send_personal_message(websocket, error_response)
+            return
+        
+        # Route to appropriate chat interface
+        if chat_mode == "content_injection":
+            await handle_content_injection_chat(websocket, user_id, user_message, story_id, session_name)
+        elif chat_mode == "job_review":
+            await handle_job_review_chat(websocket, user_id, user_message, story_id, session_name)
+        elif chat_mode == "story_steering":
+            await handle_story_steering_chat(websocket, user_id, user_message, story_id, session_name)
+        else:
+            error_response = WebSocketMessage(
+                type="error",
+                timestamp=datetime.now().isoformat(),
+                data={"error": f"Unknown chat mode: {chat_mode}"}
+            )
+            await connection_manager.send_personal_message(websocket, error_response)
+            
+    except Exception as e:
+        logger.error(f"Chat message handling failed: {e}")
+        error_response = WebSocketMessage(
+            type="error",
+            timestamp=datetime.now().isoformat(),
+            data={"error": f"Chat processing failed: {str(e)}"}
+        )
+        await connection_manager.send_personal_message(websocket, error_response)
+
+async def handle_content_injection_chat(websocket: WebSocket, user_id: str, message: str, story_id: str, session_name: str):
+    """Handle content injection chat interface."""
+    try:
+        from src.chat.content_injection_chat import ContentInjectionChatInterface
+        
+        # Create chat interface
+        chat_interface = ContentInjectionChatInterface()
+        
+        # Create session if needed
+        session_id = f"{story_id}_{session_name}_{user_id}"
+        
+        # Process the message
+        response = await chat_interface.process_injection_request(session_id, message)
+        
+        # Send response back
+        chat_response = WebSocketMessage(
+            type="chat_response",
+            timestamp=datetime.now().isoformat(),
+            data={
+                "response": response,
+                "agent": "ContentInjection",
+                "mode": "content_injection",
+                "session_id": session_id
+            }
+        )
+        await connection_manager.send_personal_message(websocket, chat_response)
+        
+    except Exception as e:
+        logger.error(f"Content injection chat failed: {e}")
+        error_response = WebSocketMessage(
+            type="error",
+            timestamp=datetime.now().isoformat(),
+            data={"error": f"Content injection failed: {str(e)}"}
+        )
+        await connection_manager.send_personal_message(websocket, error_response)
+
+async def handle_job_review_chat(websocket: WebSocket, user_id: str, message: str, story_id: str, session_name: str):
+    """Handle job review chat interface."""
+    try:
+        from src.chat.job_review_chat import JobReviewChatInterface
+        
+        # Create chat interface
+        chat_interface = JobReviewChatInterface()
+        
+        # Create session if needed
+        session_id = f"{story_id}_{session_name}_{user_id}"
+        
+        # Process the message
+        response = await chat_interface.process_review_request(session_id, message)
+        
+        # Send response back
+        chat_response = WebSocketMessage(
+            type="chat_response",
+            timestamp=datetime.now().isoformat(),
+            data={
+                "response": response,
+                "agent": "JobReview",
+                "mode": "job_review",
+                "session_id": session_id
+            }
+        )
+        await connection_manager.send_personal_message(websocket, chat_response)
+        
+    except Exception as e:
+        logger.error(f"Job review chat failed: {e}")
+        error_response = WebSocketMessage(
+            type="error",
+            timestamp=datetime.now().isoformat(),
+            data={"error": f"Job review failed: {str(e)}"}
+        )
+        await connection_manager.send_personal_message(websocket, error_response)
+
+async def handle_story_steering_chat(websocket: WebSocket, user_id: str, message: str, story_id: str, session_name: str):
+    """Handle story steering chat interface."""
+    try:
+        # Use content injection for story steering mode
+        from src.chat.content_injection_chat import ContentInjectionChatInterface
+        
+        chat_interface = ContentInjectionChatInterface()
+        session_id = f"{story_id}_{session_name}_{user_id}_steering"
+        
+        # Add steering context to the message
+        steering_message = f"[STORY STEERING MODE] {message}"
+        
+        response = await chat_interface.process_injection_request(session_id, steering_message)
+        
+        chat_response = WebSocketMessage(
+            type="chat_response",
+            timestamp=datetime.now().isoformat(),
+            data={
+                "response": response,
+                "agent": "StorySteering",
+                "mode": "story_steering",
+                "session_id": session_id
+            }
+        )
+        await connection_manager.send_personal_message(websocket, chat_response)
+        
+    except Exception as e:
+        logger.error(f"Story steering chat failed: {e}")
+        error_response = WebSocketMessage(
+            type="error",
+            timestamp=datetime.now().isoformat(),
+            data={"error": f"Story steering failed: {str(e)}"}
+        )
+        await connection_manager.send_personal_message(websocket, error_response)
 
 # Additional WebSocket endpoint for dashboard-specific functionality
 @websocket_router.websocket("/ws/dashboard")
