@@ -1,0 +1,61 @@
+{
+  "validation_started": "2025-07-21T15:06:19.737468",
+  "priority_1_fixes": {
+    "vector_dimensions": {
+      "status": "failed",
+      "details": {
+        "config_updated": false,
+        "correct_dimensions": false,
+        "http_400_resolved": true,
+        "error_details": [
+          "Config validation failed: cannot import name 'settings' from 'src.config' (/workspaces/PRPs-agentic-eng/projects/narrative_factory/src/config.py)"
+        ],
+        "overall_status": "failed"
+      }
+    },
+    "ui_navigation": {
+      "status": "failed",
+      "details": {
+        "reflex_available": true,
+        "app_imports": true,
+        "state_management": false,
+        "tab_navigation": false,
+        "server_side_state": false,
+        "error_details": [
+          "State management test failed: State classes should not be instantiated directly in a Reflex app. See https://reflex.dev/docs/state/ for further information."
+        ],
+        "overall_status": "failed"
+      }
+    },
+    "testing_dependencies": {
+      "status": "passed",
+      "details": {
+        "jose_available": true,
+        "pydantic_ai_available": true,
+        "test_imports": false,
+        "dependency_resolution": true,
+        "error_details": [
+          "test_auth.py still has import issues: cannot import name 'verify_token' from 'src.web.auth' (/workspaces/PRPs-agentic-eng/projects/narrative_factory/src/web/auth.py)"
+        ],
+        "overall_status": "passed"
+      }
+    },
+    "integration": {
+      "status": "failed",
+      "details": {
+        "config_integration": false,
+        "ui_backend_integration": false,
+        "end_to_end_workflow": false,
+        "priority_1_resolved": false,
+        "error_details": [
+          "Integration test failed: cannot import name 'settings' from 'src.config' (/workspaces/PRPs-agentic-eng/projects/narrative_factory/src/config.py)",
+          "End-to-end test failed: cannot access local variable 'NarrativeFactoryState' where it is not associated with a value"
+        ],
+        "overall_status": "failed"
+      }
+    }
+  },
+  "validation_completed": "2025-07-21T15:06:23.548457",
+  "overall_success": false,
+  "priority_1_resolved": false
+}

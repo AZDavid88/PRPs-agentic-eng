@@ -517,10 +517,17 @@ class NarrativeFactoryUI {
     // Chat Interface Setup
     setupChat() {
         const connectButton = document.getElementById('connectButton');
+        const connectButtonMain = document.getElementById('connectButtonMain');
         const sendButton = document.getElementById('sendButton');
         const chatInput = document.getElementById('chatInput');
 
-        connectButton.addEventListener('click', () => this.connectWebSocket());
+        // Handle both connect buttons
+        if (connectButton) {
+            connectButton.addEventListener('click', () => this.connectWebSocket());
+        }
+        if (connectButtonMain) {
+            connectButtonMain.addEventListener('click', () => this.connectWebSocket());
+        }
         sendButton.addEventListener('click', () => this.sendChatMessage());
         
         chatInput.addEventListener('keypress', (e) => {
@@ -686,11 +693,20 @@ class NarrativeFactoryUI {
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
         const connectButton = document.getElementById('connectButton');
+        const connectButtonMain = document.getElementById('connectButtonMain');
         
         chatInput.disabled = !enabled;
         sendButton.disabled = !enabled;
-        connectButton.textContent = enabled ? '🔌 Connected' : '🔌 Connect to AI Agents';
-        connectButton.disabled = enabled;
+        
+        // Update both connect buttons
+        if (connectButton) {
+            connectButton.textContent = enabled ? '🔌 Connected' : '🔌 Connect to AI Agents';
+            connectButton.disabled = enabled;
+        }
+        if (connectButtonMain) {
+            connectButtonMain.textContent = enabled ? '🔌 Connected' : '🔌 Connect to AI Agents';
+            connectButtonMain.disabled = enabled;
+        }
     }
 
     // Genre Management

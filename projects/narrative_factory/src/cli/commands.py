@@ -15,6 +15,11 @@ from src.workflows.generation import (
     finalize_generation_flow,
     initial_generation_flow,
 )
+from src.workflows.collaborative_generation import (
+    narrative_collaboration_flow,
+    interactive_narrative_collaboration,
+    generate_chapter_collaboratively
+)
 from src.workflows.jobs import JobStore
 
 
@@ -64,6 +69,88 @@ def generate(
     except Exception as e:
         console.print(f"❌ Error starting generation: {e}", style="bold red")
         raise typer.Exit(1)
+
+
+@app.command(name="collaborative")  
+def generate_collaborative_chapter(
+    seed: str = typer.Argument(..., help="Chapter seed for collaborative multi-agent generation"),
+    characters: Optional[str] = typer.Option(None, "--characters", "-c", help="Comma-separated character list"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Enable human review checkpoints"),
+    context: Optional[str] = typer.Option(None, "--context", help="Additional narrative context")
+):
+    """
+    Generate chapter using multi-agent collaborative workflow.
+    
+    Uses Controlflow framework for direct agent-to-agent collaboration
+    without HITL pause points (unless --interactive flag is used).
+    """
+    console.print("🤖 [bold cyan]Starting Collaborative Multi-Agent Generation...[/bold cyan]")
+    
+    try:
+        # Parse character list
+        character_list = characters.split(",") if characters else []
+        character_list = [char.strip() for char in character_list]
+        
+        console.print(f"🎬 Seed: [bold yellow]{seed}[/bold yellow]")
+        console.print(f"📋 Characters: {', '.join(character_list) if character_list else 'None specified'}")
+        console.print(f"🔄 Mode: {'Interactive' if interactive else 'Automated'}")
+        
+        # Run collaborative workflow
+        if interactive:
+            console.print("🔄 Running interactive collaborative workflow...")
+            result = interactive_narrative_collaboration(
+                chapter_seed=seed,
+                active_characters=character_list,
+                enable_human_review=True
+            )
+        else:
+            console.print("🔄 Running automated collaborative workflow...")
+            result = narrative_collaboration_flow(
+                chapter_seed=seed,
+                active_characters=character_list,
+                narrative_context=context
+            )
+        
+        # Display results in rich format
+        console.print("\n" + "="*80)
+        console.print("✅ [bold green]Collaborative Generation Complete![/bold green]")
+        console.print("="*80)
+        
+        # Strategic Brief Summary
+        console.print(f"\n📊 [bold blue]Strategic Brief:[/bold blue]")
+        console.print(f"Direction: {result.strategic_brief.narrative_direction[:150]}...")
+        console.print(f"Focus: {result.strategic_brief.character_focus}")
+        
+        # Chapter Blueprint Summary  
+        console.print(f"\n⚔️ [bold green]Chapter Blueprint:[/bold green]")
+        console.print(f"Title: {result.chapter_blueprint.metadata.title}")
+        console.print(f"Beats: {len(result.chapter_blueprint.beats)} scenes planned")
+        
+        # Prose Generation Results
+        prose_length = len(result.generated_prose)
+        console.print(f"\n✍️ [bold cyan]Generated Prose:[/bold cyan]")
+        console.print(f"Length: {prose_length:,} characters (~{prose_length//5:,} words)")
+        console.print(f"Preview: {result.generated_prose[:200]}...")
+        
+        # Validation Report
+        validation_status = result.validation_report.get('status', 'completed')
+        console.print(f"\n📚 [bold magenta]Validation:[/bold magenta]")
+        console.print(f"Status: {validation_status}")
+        
+        # Collaboration Metadata
+        agents_used = result.collaboration_metadata.get('agents_used', [])
+        console.print(f"\n🤝 [bold yellow]Collaboration Details:[/bold yellow]")
+        console.print(f"Agents: {', '.join(agents_used)}")
+        console.print(f"Flow: {result.collaboration_metadata.get('generation_flow')}")
+        
+        console.print(f"\n🎉 [bold green]Collaborative workflow completed successfully![/bold green]")
+        
+    except Exception as e:
+        console.print(f"❌ [bold red]Collaborative generation failed: {e}[/bold red]")
+        import traceback
+        console.print(f"Debug info: {traceback.format_exc()}")
+        raise typer.Exit(1)
+
 
 @app.command()
 def status():

@@ -167,12 +167,12 @@ class QdrantSettings(BaseSettings):
         description="Collection for story progress tracking"
     )
 
-    # Vector configuration
+    # Vector configuration - FIXED: Updated for Jina v4 compatibility
     vector_size: int = Field(
-        default=768,
+        default=2048,  # Changed from 768 to 2048 for Jina v4 embeddings
         ge=100,
         le=2048,
-        description="Vector embedding dimension"
+        description="Vector embedding dimension (2048 for Jina v4)"
     )
     distance_metric: str = Field(
         default="cosine",

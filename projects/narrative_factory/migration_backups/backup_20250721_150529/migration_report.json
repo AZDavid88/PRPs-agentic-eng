@@ -1,0 +1,8 @@
+{
+  "migration_started": "2025-07-21T15:05:29.856791",
+  "priority_1_issue": "HTTP 400 errors from 768\u21922048 dimension mismatch",
+  "expected_outcome": "ALL document ingestion HTTP 400 errors resolved",
+  "migration_failed": "2025-07-21T15:05:29.985240",
+  "error": "Failed to connect to Qdrant database",
+  "overall_success": false
+}

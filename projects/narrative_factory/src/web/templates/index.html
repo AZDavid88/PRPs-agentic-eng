@@ -188,9 +188,14 @@
                                 <option value="job_review">Job Review</option>
                                 <option value="story_steering">Story Steering</option>
                             </select>
-                            <div class="connection-status" id="connectionStatus">
-                                <span class="status-indicator offline"></span>
-                                <span class="status-text">Disconnected</span>
+                            <div class="connection-controls">
+                                <button id="connectButtonMain" class="connect-button-main" style="margin-right: 10px;">
+                                    🔌 Connect to AI Agents
+                                </button>
+                                <div class="connection-status" id="connectionStatus">
+                                    <span class="status-indicator offline"></span>
+                                    <span class="status-text">Disconnected</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -198,8 +203,15 @@
                     <div class="chat-container">
                         <div class="chat-messages" id="chatMessages">
                             <div class="system-message">
-                                <p>Welcome to the Narrative Factory AI Chat Interface!</p>
-                                <p>Connect to start conversational content injection, job review, or story steering.</p>
+                                <p><strong>Welcome to the Narrative Factory AI Chat Interface!</strong></p>
+                                <p>🎯 Click the <strong>"🔌 Connect to AI Agents"</strong> button above to start chatting with your sophisticated agent quartet:</p>
+                                <ul style="margin: 10px 0; padding-left: 20px;">
+                                    <li><strong>Enhanced Director</strong> - Strategic narrative planning</li>
+                                    <li><strong>Enhanced Tactician</strong> - Chapter structure & pacing</li>
+                                    <li><strong>Enhanced Weaver</strong> - Prose generation & style</li>
+                                    <li><strong>Enhanced Canonist</strong> - Continuity & quality control</li>
+                                </ul>
+                                <p>💡 <em>Tip: Upload story materials first in the "Material Upload" tab for better context-aware responses!</em></p>
                             </div>
                         </div>
                         

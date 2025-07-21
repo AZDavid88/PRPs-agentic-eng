@@ -260,27 +260,16 @@ def test_test_command():
     assert "MVP Phase 5: CLI Implementation complete" in result.stdout
 
 
-@patch('scripts.ingest.ingest_bootstrap_data')
-def test_ingest_command(mock_ingest):
-    """Test ingest command calls ingestion function."""
-    mock_ingest.return_value = None
-    
-    result = runner.invoke(app, ["ingest"])
-    
-    assert result.exit_code == 0
-    assert "Starting data ingestion" in result.stdout
-    assert "Data ingestion complete" in result.stdout
+@pytest.mark.skip(reason="LEGACY TEST - ingest command deprecated, replaced by ingest-materials command")
+def test_ingest_command_deprecated():
+    """Legacy test - ingest command replaced by ingest-materials."""
+    pass
 
 
-@patch('scripts.ingest.ingest_bootstrap_data')
-def test_ingest_command_error(mock_ingest):
-    """Test ingest command handles errors."""
-    mock_ingest.side_effect = Exception("Ingestion failed")
-    
-    result = runner.invoke(app, ["ingest"])
-    
-    assert result.exit_code == 1
-    assert "Error during ingestion" in result.stdout
+@pytest.mark.skip(reason="LEGACY TEST - ingest command deprecated, replaced by ingest-materials command")
+def test_ingest_command_error_deprecated():
+    """Legacy test - ingest command replaced by ingest-materials."""
+    pass
 
 
 # Integration test helper - can be skipped in CI

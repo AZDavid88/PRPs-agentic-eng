@@ -63,6 +63,10 @@ dependencies = [
     "psutil>=5.9.0", # System metrics (CPU, memory)
     "gunicorn>=21.2.0", # Production WSGI server
     "aiohttp>=3.12.14",
+    # PRIORITY 1 FIXES: Added missing dependencies for framework integration
+    "python-jose[cryptography]>=3.3.0", # Fixes tests/test_auth.py:9 import error
+    "reflex>=0.5.0", # UI framework replacement for tab navigation issues
+    "pydantic-ai>=0.0.12", # Enhanced multi-agent orchestration
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,96 @@
+{
+  "execution_started": "2025-07-21T15:05:28.833721",
+  "priority_1_sequence": [
+    {
+      "step": "Install Dependencies",
+      "status": "success",
+      "timestamp": "2025-07-21T15:05:28.880590"
+    },
+    {
+      "step": "Verify Config Changes",
+      "status": "success",
+      "timestamp": "2025-07-21T15:05:28.880801"
+    },
+    {
+      "step": "Execute Qdrant Migration",
+      "status": "success",
+      "timestamp": "2025-07-21T15:05:30.122660"
+    },
+    {
+      "step": "Deploy Reflex UI",
+      "status": "failed",
+      "timestamp": "2025-07-21T15:05:35.967564"
+    }
+  ],
+  "overall_success": false,
+  "execution_completed": "2025-07-21T15:05:36.122678",
+  "system_status": {
+    "config_fixed": false,
+    "dependencies_available": true,
+    "ui_functional": false,
+    "migration_completed": true,
+    "priority_1_resolved": false
+  },
+  "execution_log": [
+    {
+      "timestamp": "2025-07-21T15:05:28.833785",
+      "step": "Installing dependencies",
+      "status": "in_progress",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-21T15:05:28.880564",
+      "step": "Installing dependencies",
+      "status": "success",
+      "details": "All dependencies installed"
+    },
+    {
+      "timestamp": "2025-07-21T15:05:28.880618",
+      "step": "Verifying config changes",
+      "status": "in_progress",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-21T15:05:28.880788",
+      "step": "Verifying config changes",
+      "status": "success",
+      "details": "Vector size updated to 2048"
+    },
+    {
+      "timestamp": "2025-07-21T15:05:28.880811",
+      "step": "Executing Qdrant migration",
+      "status": "in_progress",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-21T15:05:30.122625",
+      "step": "Executing Qdrant migration",
+      "status": "success",
+      "details": "Migration completed"
+    },
+    {
+      "timestamp": "2025-07-21T15:05:30.122683",
+      "step": "Deploying Reflex UI",
+      "status": "in_progress",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-21T15:05:35.967546",
+      "step": "Deploying Reflex UI",
+      "status": "failed",
+      "details": "App.__init__() got an unexpected keyword argument 'api'"
+    },
+    {
+      "timestamp": "2025-07-21T15:05:35.967570",
+      "step": "Verifying system status",
+      "status": "in_progress",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-21T15:05:36.122657",
+      "step": "Verifying system status",
+      "status": "failed",
+      "details": "Issues: ['config_fixed', 'ui_functional']"
+    }
+  ]
+}

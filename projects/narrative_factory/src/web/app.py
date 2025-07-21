@@ -80,6 +80,14 @@ app.include_router(
     tags=["Material Ingestion"]
 )
 
+# Add collaborative generation routes
+from src.web.routes.collaborative import router as collaborative_router
+app.include_router(
+    collaborative_router,
+    prefix="/api/collaborative", 
+    tags=["Collaborative Generation"]
+)
+
 # Add WebSocket functionality
 from src.web.websocket_integration import setup_websocket_routes, update_cors_for_websockets
 setup_websocket_routes(app)

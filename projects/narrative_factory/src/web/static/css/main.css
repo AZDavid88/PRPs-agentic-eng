@@ -498,6 +498,38 @@ body {
     padding: 2rem;
 }
 
+/* Connect Button Styles */
+.connect-button-main {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.connect-button-main:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.connect-button-main:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.connection-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 /* Toast Notifications */
 .toast-container {
     position: fixed;
